@@ -1,68 +1,321 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+* {
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
+  min-height: 100vh;
+  font-family: "Gill Sans", sans-serif;
+  font-size: 21px;
+  font-weight: 400;
+  background-color: black;
+  background-image: url("./public/bg6.jpg");
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+
+.main {
+  width: 50%;
+  margin-left: 50%;
+  margin-top: 50px;
+}
+
+.logo {
+  width: 8%;
+  height: 100px;
+
+}
+
+#p1,
+#p2 {
+  color: white;
+  font-size: 80px;
+  font-family: system-ui;
+  font-weight: 500;
+}
+
+#p2 {
+  color: rgb(203, 107, 185);
+}
+
+#p2 span {
+  color: white;
+}
+
+#text {
+  color: white;
+  font-weight: 200;
+  font-family: "Gill Sans", sans-serif;
+}
+
+nav {
+  background-color: rgb(61, 59, 59);
+  box-shadow: 3px 3px 5px white;
+}
+
+nav ul {
+  width: 100%;
+  list-style: none;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+nav li {
+  height: 96px;
+}
+
+nav a {
+  height: 100%;
+  padding: 0 45px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  color: white;
+}
+
+nav a:hover {
+  background-color: rgb(28, 28, 28);
+}
+
+nav li:last-child {
+  margin-left: auto;
+  border-radius: 350px;
+  border-color: white;
+  border-style: solid;
+}
+
+#q:hover {
+  border-radius: 350px;
+  border-color: white;
+  background-color: rgb(28, 28, 28);
+}
+
+
+.bs {
+  position: fixed;
+  top: 60%;
+  left: 11%;
+  transform: translateX(-50%);
+  width: 12%;
+  height: 20%;
+  border: 5px black solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.team {
+  position: fixed;
+  top: 18.8%;
+  left: 35.3%;
+  transform: translateX(-50%);
+  width: 12%;
+  height: 20%;
+  border: 5px black solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.arrow {
+  position: fixed;
+  top: 60%;
+  left: 35.2%;
+  transform: translateX(-50%);
+  width: 12%;
+  height: 20%;
+  border: 3px rgb(245, 241, 241) solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.graph {
+  position: fixed;
+  top: 60%;
+  left: 23.2%;
+  transform: translateX(-50%);
+  width: 12%;
+  height: 20%;
+  border: 3px rgb(247, 242, 242) solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.create {
+  position: fixed;
+  top: 40%;
+  left: 23%;
+  transform: translateX(-50%);
+  width: 37%;
+  height: 19%;
+  border: 5px black solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.work {
+  position: fixed;
+  top: 19%;
+  left: 11%;
+  transform: translateX(-50%);
+  width: 12%;
+  height: 20%;
+  border: 5px black solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tick {
+  position: fixed;
+  top: 19%;
+  left: 23.2%;
+  transform: translateX(-50%);
+  width: 12%;
+  height: 20%;
+  border: 5px black solid;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.overlay-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+
+}
+
+
+.tile_data {
+  width: 50px;
+  background-color: black;
+  padding: 2px 2px;
+  border-radius: 5px;
+  position: absolute;
+  bottom: -9rem;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  opacity: 0;
+  transition: opacity 1s 1s;
+}
+
+.container {
   display: flex;
   place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  margin-inline: 1.5rem;
+  padding-block: 5rem;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+
+
+.tile_article {
+  position: relative;
+  overflow: hidden;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+
+
+.tile_data {
+  width: 100px;
+  background-color: white;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 8px 24px hsla(0, 0%, 0%, .15);
+  border-radius: 1rem;
+  position: absolute;
+  bottom: -9rem;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  opacity: 0;
+  transition: opacity 1s 1s;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.tile_description {
+  display: block;
+  font-size: var(--small-font-size);
+  margin-bottom: .25rem;
+}
+
+.tile_article:hover .tile_data {
+  animation: show-data 1s forwards;
+  opacity: 1;
+  transition: opacity .3s;
+}
+
+.tile_article:hover {
+  animation: remove-overflow 2s forwards;
+}
+
+.tile_article:not(:hover) {
+  animation: show-overflow 2s forwards;
+}
+
+.tile_article:not(:hover) .tile_data {
+  animation: remove-data 1s forwards;
+}
+
+
+@keyframes show-data {
+  50% {
+    transform: translateY(-10rem);
   }
-  a:hover {
-    color: #747bff;
+
+  100% {
+    transform: translateY(-7rem);
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+@keyframes remove-overflow {
+  to {
+    overflow: initial;
   }
+}
+
+@keyframes remove-data {
+  0% {
+    transform: translateY(-7rem);
+  }
+
+  50% {
+    transform: translateY(-10rem);
+  }
+
+  100% {
+    transform: translateY(.5rem);
+  }
+}
+
+@keyframes show-overflow {
+  0% {
+    overflow: initial;
+    pointer-events: none;
+  }
+
+  50% {
+    overflow: hidden;
+  }
+}
+
+html {
+  height: 100vh;
+  
 }
