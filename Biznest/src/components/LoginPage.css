@@ -25,6 +25,7 @@
     height: 50px;
   }
   
+  
   nav ul li a {
     color: white;
     text-decoration: none;
@@ -160,7 +161,7 @@
 }
 
 .social-icons a{
-    border: 1px solid #ccc;
+    border: 1px solid black;
     border-radius: 20%;
     display: inline-flex;
     justify-content: center;
@@ -236,7 +237,7 @@
 }
 
 .tb{
-    border: 2px solid white;
+    border: 2px solid black ;
 }
 a{
     padding-left: 0;
