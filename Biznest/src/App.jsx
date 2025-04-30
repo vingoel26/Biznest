@@ -1,10 +1,10 @@
 import React from 'react';
 import './App.css';
-import LoginPage from './components/LoginPage';
+import HomePage from './components/HomePage';
 
 function App() {
   return (
-<LoginPage/>
+<HomePage/>
   );
 }
 
