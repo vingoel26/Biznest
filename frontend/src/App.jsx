@@ -8,7 +8,9 @@ import {
 
 import './App.css';
 import LoginPage from './components/LoginPage';
+import ContactPage from './components/Contactus';
 import HomePage from './components/HomePage'; // Re-add HomePage import
+import { Home } from 'lucide-react';
 
 function App() {
   // Basic check if user is logged in (replace with real auth check)
@@ -18,10 +20,14 @@ function App() {
     // Re-add Router and Routes setup
     <Router>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<HomePage />} />
         <Route 
           path="/home" 
           element={isLoggedIn ? <HomePage /> : <Navigate to="/login" replace />}
+        />
+        <Route 
+          path="/WDA-assignment/new-contact-us/contact.html" 
+          element={<ContactPage/>}
         />
         {/* Redirect root path to login or home based on logged-in status */}
         <Route 
@@ -31,6 +37,8 @@ function App() {
         {/* Add other routes here if needed based on merged code */}
       </Routes>
     </Router>
+
+    
   );
 }
 
