@@ -1,22 +1,22 @@
 import React, { useRef, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
 import logoImg from "./images/logo (2).png";
 import defaultUserPicture from "./images/defaultUserPicture.png";
-import api from '../services/api'; // Import the api service
+import api from '../services/api';
 
 const HomePage = () => {
   const dropdownRef = useRef(null);
   const displayPictureRef = useRef(null);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [userData, setUserData] = useState('Loading user data...');
-  const username = localStorage.getItem('username') || 'User'; 
+  const username = localStorage.getItem('username') || 'User';
+  const navigate = useNavigate();
 
-  // Toggle dropdown visibility
   const handleDisplayPictureClick = () => {
     setIsDropdownVisible((prev) => !prev);
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -33,42 +33,36 @@ const HomePage = () => {
     };
   }, []);
 
-  // Fetch protected data on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Use the axios instance which includes the token
-        const response = await api.get('/api/user/me'); 
-        setUserData(response.data); // The backend sends plain text
+        const response = await api.get('/api/user/me');
+        setUserData(response.data);
       } catch (error) {
         console.error("Error fetching user data:", error);
-        // Error handling (like 401) might be handled by the axios interceptor
-        // Set a generic message here if needed, or rely on interceptor redirect
         setUserData('Failed to load user data. You might be logged out.');
       }
     };
 
     fetchUserData();
-  }, []); // Empty dependency array ensures this runs only once
+  }, []);
 
   const handleLogout = () => {
-      localStorage.removeItem('username'); 
-      localStorage.removeItem('jwtToken'); // Remove token on logout
-      window.location.href = '/login'; 
-  }
+    localStorage.removeItem('username');
+    localStorage.removeItem('jwtToken');
+    navigate('/login');
+  };
 
   return (
     <div>
       <header>
-        
-          <img id="logoimg" src={logoImg} alt="BizNest Logo" />
-        
+        <img id="logoimg" src={logoImg} alt="BizNest Logo" />
         <nav>
           <ul>
-            <li><a className="nav-button" href="/WDA-assignment/sign-up page/signuppage.html">Signup</a></li>
-            <li><a className="nav-button" href="/WDA-assignment/about us/aboutus.html">About</a></li>
-            <li><a className="nav-button" href="/WDA-assignment/new-contact-us/contact.html">Contact</a></li>
-            <li className="ind"><a className="ind" href="/WDA-assignment/index/index.html">Index</a></li>
+            <li><Link className="nav-button" to="/signup">Signup</Link></li>
+            <li><Link className="nav-button" to="/about">About</Link></li>
+            <li><Link className="nav-button" to="/contact">Contact</Link></li>
+            <li className="ind"><Link className="ind" to="/">Index</Link></li>
           </ul>
           <div id="displayPicture" ref={displayPictureRef} onClick={handleDisplayPictureClick}>
             <img src={defaultUserPicture} alt="Profile" id="profilePicture" />
@@ -80,6 +74,7 @@ const HomePage = () => {
             >
               <p><strong>Name:</strong> {username}</p>
               <p><small><i>Raw Data: {typeof userData === 'string' ? userData : JSON.stringify(userData)}</i></small></p>
+              <button onClick={handleLogout}>Logout</button>
             </div>
           </div>
         </nav>
@@ -138,10 +133,10 @@ const HomePage = () => {
           <div className="footer-section links">
             <h3>Quick Links</h3>
             <ul>
-              <li><a href="/WDA-assignment/sign-up page/signuppage.html">Signup</a></li>
-              <li><a href="/WDA-assignment/about us/aboutus.html">About</a></li>
-              <li><a href="/WDA-assignment/new-contact-us/contact.html">Contact</a></li>
-              <li><a href="/WDA-assignment/index/index.html">Index</a></li>
+              <li><Link to="/signup">Signup</Link></li>
+              <li><Link to="/about">About</Link></li>
+              <li><Link to="/contact">Contact</Link></li>
+              <li><Link to="/">Index</Link></li>
             </ul>
           </div>
           <div className="footer-section social">

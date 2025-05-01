@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import './contactus.css';
 
 const ContactPage = () => {
@@ -19,7 +20,6 @@ const ContactPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    // Here you would typically send the data to a server
     alert('Message sent! We will get back to you soon.');
     setFormData({ fullName: '', email: '', message: '' });
   };
@@ -27,18 +27,16 @@ const ContactPage = () => {
   return (
     <div className="contact-page">
       <header className="header">
-        
         <nav className="nav">
-        <div className="logo-container">
-        <img src="/logo.jpg" alt="Biznest Logo" className="logo" />
-        <h1>Biznest</h1>
+          <div className="logo-container">
+            <img src="/logo.jpg" alt="Biznest Logo" className="logo" />
+            <h1>Biznest</h1>
           </div>
-        
           <ul>
-            <li><a href="/signup">Signup</a></li>
-            <li><a href="/about">About</a></li>
-            <li><a href="/contact" className="active">Contact</a></li>
-            <li><a href="/index" className="index-btn">Index</a></li>
+            <li><Link to="/signup">Signup</Link></li>
+            <li><Link to="/about">About</Link></li>
+            <li><Link to="/contact" className="active">Contact</Link></li>
+            <li><Link to="/">Home</Link></li>
           </ul>
         </nav>
       </header>
