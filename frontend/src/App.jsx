@@ -8,7 +8,9 @@ import {
 
 import './App.css';
 import LoginPage from './components/LoginPage';
+import ContactPage from './components/Contactus';
 import HomePage from './components/HomePage'; // Re-add HomePage import
+import { Home } from 'lucide-react';
 import Dashboard from './components/Dashboard'; // Re-add Dashboard import
 import AboutUs from './components/AboutUs'; // Re-add AboutUs import
 
@@ -17,7 +19,7 @@ function App() {
   const isLoggedIn = !!localStorage.getItem('username');
 
   return (
-    <AboutUs />
+    
     // Re-add Router and Routes setup
     // <Router>
     //   <Routes>
@@ -34,6 +36,7 @@ function App() {
     //     {/* Add other routes here if needed based on merged code */}
     //   </Routes>
     // </Router>
+    <ContactPage />
   );
 }
 
