@@ -27,11 +27,13 @@ const ContactPage = () => {
   return (
     <div className="contact-page">
       <header className="header">
-        <div className="logo-container">
-          <img src="/logo.jpg" alt="Biznest Logo" className="logo" />
-          <h1>Biznest</h1>
-        </div>
+        
         <nav className="nav">
+        <div className="logo-container">
+        <img src="/logo.jpg" alt="Biznest Logo" className="logo" />
+        <h1>Biznest</h1>
+          </div>
+        
           <ul>
             <li><a href="/signup">Signup</a></li>
             <li><a href="/about">About</a></li>
@@ -53,7 +55,7 @@ const ContactPage = () => {
           </div>
           <h2>Call Us</h2>
           <p>Speak directly with our support team</p>
-          <a href="tel:1234567890" className="contact-info">+1 (555) 123-4567</a>
+          <a href="tel:+15551234567" className="contact-info">+1 (555) 123-4567</a>
         </div>
 
         <div className="contact-card">
@@ -71,7 +73,7 @@ const ContactPage = () => {
           </div>
           <h2>Visit Us</h2>
           <p>Come to our headquarters</p>
-          <address className="contact-info">saroj hostel</address>
+          <address className="contact-info">123 Business Ave, Tech Park</address>
         </div>
       </section>
 
@@ -82,7 +84,9 @@ const ContactPage = () => {
             <li className="active">
               <a href="#general">General Inquiry</a>
             </li>
-            
+            <li>
+              <a href="#business">Business Listing</a>
+            </li>
           </ul>
         </div>
 

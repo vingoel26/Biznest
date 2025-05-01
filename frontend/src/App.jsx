@@ -19,7 +19,7 @@ function App() {
   const isLoggedIn = !!localStorage.getItem('username');
 
   return (
-    <AboutUs />
+    
     // Re-add Router and Routes setup
     // <Router>
     //   <Routes>
@@ -36,6 +36,7 @@ function App() {
     //     {/* Add other routes here if needed based on merged code */}
     //   </Routes>
     // </Router>
+    <ContactPage />
   );
 }
 
