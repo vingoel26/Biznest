@@ -1,3 +1,365 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root,
+  html,
+  body {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 270 70% 50%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 270 70% 95%;
+    --accent-foreground: 270 70% 30%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 270 70% 50%;
+    --radius: 0.5rem;
+
+    /* Sidebar variables for light theme */
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-accent: 270 70% 95%;
+    --sidebar-accent-foreground: 270 70% 30%;
+    --sidebar-ring: 270 70% 50%;
+  }
+
+  .dark,
+  .dark html,
+  .dark body {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 5.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 270 70% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 270 70% 15%;
+    --accent-foreground: 270 70% 90%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 270 70% 60%;
+
+    /* Sidebar variables for dark theme */
+    --sidebar: 240 10% 5.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 270 70% 15%;
+    --sidebar-accent-foreground: 270 70% 90%;
+    --sidebar-ring: 270 70% 60%;
+  }
+
+  /* Purple Theme */
+  .theme-purple {
+    --primary: 270 70% 50%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 270 70% 50%;
+    --accent: 270 70% 95%;
+    --accent-foreground: 270 70% 30%;
+    --sidebar-accent: 270 70% 95%;
+    --sidebar-accent-foreground: 270 70% 30%;
+    --sidebar-ring: 270 70% 50%;
+  }
+
+  .dark.theme-purple {
+    --primary: 270 70% 60%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 270 70% 60%;
+    --accent: 270 70% 15%;
+    --accent-foreground: 270 70% 90%;
+    --sidebar-accent: 270 70% 15%;
+    --sidebar-accent-foreground: 270 70% 90%;
+    --sidebar-ring: 270 70% 60%;
+  }
+
+  /* Blue Theme */
+  .theme-blue {
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 220 70% 50%;
+    --accent: 220 70% 95%;
+    --accent-foreground: 220 70% 30%;
+    --sidebar-accent: 220 70% 95%;
+    --sidebar-accent-foreground: 220 70% 30%;
+    --sidebar-ring: 220 70% 50%;
+  }
+
+  .dark.theme-blue {
+    --primary: 220 70% 60%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 220 70% 60%;
+    --accent: 220 70% 15%;
+    --accent-foreground: 220 70% 90%;
+    --sidebar-accent: 220 70% 15%;
+    --sidebar-accent-foreground: 220 70% 90%;
+    --sidebar-ring: 220 70% 60%;
+  }
+
+  /* Green Theme */
+  .theme-green {
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 142 70% 45%;
+    --accent: 142 70% 95%;
+    --accent-foreground: 142 70% 30%;
+    --sidebar-accent: 142 70% 95%;
+    --sidebar-accent-foreground: 142 70% 30%;
+    --sidebar-ring: 142 70% 45%;
+  }
+
+  .dark.theme-green {
+    --primary: 142 70% 50%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 142 70% 50%;
+    --accent: 142 70% 15%;
+    --accent-foreground: 142 70% 90%;
+    --sidebar-accent: 142 70% 15%;
+    --sidebar-accent-foreground: 142 70% 90%;
+    --sidebar-ring: 142 70% 50%;
+  }
+
+  /* Amber Theme */
+  .theme-amber {
+    --primary: 45 93% 47%;
+    --primary-foreground: 0 0% 10%;
+    --ring: 45 93% 47%;
+    --accent: 45 93% 95%;
+    --accent-foreground: 45 93% 30%;
+    --sidebar-accent: 45 93% 95%;
+    --sidebar-accent-foreground: 45 93% 30%;
+    --sidebar-ring: 45 93% 47%;
+  }
+
+  .dark.theme-amber {
+    --primary: 45 93% 55%;
+    --primary-foreground: 0 0% 10%;
+    --ring: 45 93% 55%;
+    --accent: 45 50% 15%;
+    --accent-foreground: 45 93% 90%;
+    --sidebar-accent: 45 50% 15%;
+    --sidebar-accent-foreground: 45 93% 90%;
+    --sidebar-ring: 45 93% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border transition-colors duration-300;
+  }
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Add these specific contrast fixes for light mode and dashboard elements */
+.light .text-muted-foreground {
+  color: hsl(240 3.8% 40%);
+}
+
+.light .border-border {
+  border-color: hsl(240 5.9% 85%);
+}
+
+/* Fix for form inputs */
+.light input,
+.light textarea,
+.light select {
+  color: hsl(240 10% 3.9%);
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: hsl(240 3.8% 46.1%);
+}
+
+/* Fix for buttons */
+.light .btn-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Ensure text in cards is visible */
+.light .bg-card {
+  background-color: hsl(var(--card));
+}
+
+.light .text-card-foreground {
+  color: hsl(var(--card-foreground));
+}
+
+/* Dashboard specific fixes */
+.light .dashboard-table th {
+  background-color: hsl(240 5.9% 90%);
+  color: hsl(240 10% 20%);
+  font-weight: 600;
+}
+
+.light .dashboard-table td {
+  color: hsl(240 10% 30%);
+}
+
+/* Status badges with better contrast */
+.status-approved {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: rgb(16, 185, 129);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-weight: 500;
+}
+
+.light .status-approved {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: rgb(6, 95, 70);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-pending {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: rgb(245, 158, 11);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-weight: 500;
+}
+
+.light .status-pending {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: rgb(146, 64, 14);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Improved sidebar contrast in light mode */
+.light div[data-sidebar="sidebar"] {
+  background-color: hsl(var(--sidebar));
+  color: hsl(var(--sidebar-foreground));
+  border-color: hsl(var(--sidebar-border));
+}
+
+.light div[data-sidebar="footer"] button {
+  color: hsl(var(--sidebar-foreground));
+  border-color: hsl(var(--primary));
+}
+
+/* Theme toggle button and menu fixes for light mode */
+.light .theme-toggle button,
+.light .theme-selector button {
+  background-color: hsl(var(--background));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.light .theme-toggle svg,
+.light .theme-selector svg {
+  color: hsl(var(--foreground));
+}
+
+.light .theme-selection-menu {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.light .theme-selection-menu button {
+  color: hsl(var(--foreground));
+}
+
+.light .theme-selection-menu button:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Analytics matrix fixes for light mode */
+.light .analytics-box {
+  background-color: rgba(243, 244, 246, 0.8);
+  border-color: hsl(var(--border));
+}
+
+.light .analytics-box h3 {
+  color: hsl(var(--foreground));
+}
+
+.light .analytics-box .text-white,
+.light .analytics-box .text-card-foreground {
+  color: hsl(var(--foreground));
+}
+
+/* Fix for "Add Category" box in light mode */
+.light .category-box {
+  background-color: rgba(243, 244, 246, 0.8);
+  border-color: hsl(var(--primary));
+  border-style: dashed;
+  color: hsl(var(--foreground));
+}
+
+.light .category-box svg {
+  color: hsl(var(--muted-foreground));
+}
+
+.light .category-box p {
+  color: hsl(var(--foreground));
+}
+
+.light .category-box button {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+
+/* Fix for the wave divider in About and Contact pages */
+.wave-divider {
+  color: hsl(var(--background));
+}
+
+.light .wave-divider svg path {
+  fill: hsl(var(--background));
+}
+
+.dark .wave-divider svg path {
+  fill: hsl(var(--background));
+}
+
+/* Fix for theme selection menu */
+.light .theme-selection-menu {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.light .theme-selection-menu button {
+  color: hsl(var(--foreground));
+}
+
+.light .theme-selection-menu button:hover {
+  background-color: hsl(var(--accent));
+}
+
+/* Transition for all theme changes */
+.transition-theme {
+  transition-property: color, background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Chart colors for light mode */
+.light .chart-text {
+  color: hsl(240 10% 20%);
+}
+
+.light .chart-grid {
+  stroke: hsl(240 10% 80%);
+}
