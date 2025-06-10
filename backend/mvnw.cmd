@@ -1,4 +1,3 @@
-<# : batch portion
 @REM ----------------------------------------------------------------------------
 @REM Licensed to the Apache Software Foundation (ASF) under one
 @REM or more contributor license agreements.  See the NOTICE file
@@ -27,23 +26,33 @@
 @REM   MVNW_VERBOSE - true: enable verbose log; others: silence the output
 @REM ----------------------------------------------------------------------------
 
-@IF "%__MVNW_ARG0_NAME__%"=="" (SET __MVNW_ARG0_NAME__=%~nx0)
-@SET __MVNW_CMD__=
-@SET __MVNW_ERROR__=
-@SET __MVNW_PSMODULEP_SAVE=%PSModulePath%
-@SET PSModulePath=
-@FOR /F "usebackq tokens=1* delims==" %%A IN (`powershell -noprofile "& {$scriptDir='%~dp0'; $script='%__MVNW_ARG0_NAME__%'; icm -ScriptBlock ([Scriptblock]::Create((Get-Content -Raw '%~f0'))) -NoNewScope}"`) DO @(
-  IF "%%A"=="MVN_CMD" (set __MVNW_CMD__=%%B) ELSE IF "%%B"=="" (echo %%A) ELSE (echo %%A=%%B)
+@echo off
+setlocal enabledelayedexpansion
+
+if "%__MVNW_ARG0_NAME__%"=="" (SET __MVNW_ARG0_NAME__=%~nx0)
+set __MVNW_CMD__=
+set __MVNW_ERROR__=
+set __MVNW_PSMODULEP_SAVE=%PSModulePath%
+set PSModulePath=
+
+for /F "usebackq tokens=1* delims==" %%A in (`powershell -noprofile "& {$scriptDir='%~dp0'; $script='%__MVNW_ARG0_NAME__%'; icm -ScriptBlock ([Scriptblock]::Create((Get-Content -Raw '%~f0'))) -NoNewScope}"`) do (
+  if "%%A"=="MVN_CMD" (set __MVNW_CMD__=%%B) else if "%%B"=="" (echo %%A) else (echo %%A=%%B)
 )
-@SET PSModulePath=%__MVNW_PSMODULEP_SAVE%
-@SET __MVNW_PSMODULEP_SAVE=
-@SET __MVNW_ARG0_NAME__=
-@SET MVNW_USERNAME=
-@SET MVNW_PASSWORD=
-@IF NOT "%__MVNW_CMD__%"=="" (%__MVNW_CMD__% %*)
-@echo Cannot start maven from wrapper >&2 && exit /b 1
-@GOTO :EOF
-: end batch / begin powershell #>
+
+set PSModulePath=%__MVNW_PSMODULEP_SAVE%
+set __MVNW_PSMODULEP_SAVE=
+set __MVNW_ARG0_NAME__=
+set MVNW_USERNAME=
+set MVNW_PASSWORD=
+
+if not "%__MVNW_CMD__%"=="" (%__MVNW_CMD__% %*)
+if errorlevel 1 (
+  echo Cannot start maven from wrapper >&2
+  exit /b 1
+)
+goto :EOF
+
+: end batch / begin powershell
 
 $ErrorActionPreference = "Stop"
 if ($env:MVNW_VERBOSE -eq "true") {
@@ -73,7 +82,7 @@ switch -wildcard -casesensitive ( $($distributionUrl -replace '^.*/','') ) {
 # apply MVNW_REPOURL and calculate MAVEN_HOME
 # maven home pattern: ~/.m2/wrapper/dists/{apache-maven-<version>,maven-mvnd-<version>-<platform>}/<hash>
 if ($env:MVNW_REPOURL) {
-  $MVNW_REPO_PATTERN = if ($USE_MVND) { "/org/apache/maven/" } else { "/maven/mvnd/" }
+  $MVNW_REPO_PATTERN = if ($USE_MVND) { "/maven/mvnd/" } else { "/org/apache/maven/" }
   $distributionUrl = "$env:MVNW_REPOURL$MVNW_REPO_PATTERN$($distributionUrl -replace '^.*'+$MVNW_REPO_PATTERN,'')"
 }
 $distributionUrlName = $distributionUrl -replace '^.*/',''
