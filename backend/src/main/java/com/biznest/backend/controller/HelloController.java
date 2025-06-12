@@ -1,8 +1,11 @@
 package com.biznest.backend.controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@CrossOrigin
+
 // @RequestMapping("/api") // Comment out or remove this line
 public class HelloController {
 

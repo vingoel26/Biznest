@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
+@CrossOrigin
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -32,31 +33,48 @@ public class AuthController {
     @Autowired
     private JwtUtils jwtUtils;
 
-    @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@RequestBody SignUpRequest signUpRequest) {
-        // Basic validation
-        if (signUpRequest.getUsername() == null || signUpRequest.getUsername().isBlank()) {
-            return new ResponseEntity<>(new MessageResponse("Error: Username cannot be blank!"), HttpStatus.BAD_REQUEST);
-        }
-        if (signUpRequest.getPassword() == null || signUpRequest.getPassword().length() < 8) {
-             return new ResponseEntity<>(new MessageResponse("Error: Password must be at least 8 characters!"), HttpStatus.BAD_REQUEST);
-        }
-        if (userDetailsService.userExists(signUpRequest.getUsername())) {
-            return new ResponseEntity<>(new MessageResponse("Error: Username is already taken!"), HttpStatus.BAD_REQUEST);
-        }
-
-        String encodedPassword = passwordEncoder.encode(signUpRequest.getPassword());
-        User user = new User(
-                signUpRequest.getUsername(),
-                signUpRequest.getEmail(),
-                encodedPassword
-        );
-
-        userDetailsService.addUser(user);
-
-        System.out.println("User registered: " + user.getUsername());
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+@PostMapping("/signup")
+public ResponseEntity<?> registerUser(@RequestBody SignUpRequest signUpRequest) {
+    // Basic validation
+    if (signUpRequest.getUsername() == null || signUpRequest.getUsername().isBlank()) {
+        return ResponseEntity
+                .badRequest()
+                .body(new MessageResponse("Error: Username cannot be blank!"));
     }
+
+    if (signUpRequest.getPassword() == null || signUpRequest.getPassword().length() < 8) {
+        return ResponseEntity
+                .badRequest()
+                .body(new MessageResponse("Error: Password must be at least 8 characters!"));
+    }
+
+    if (userDetailsService.userExists(signUpRequest.getUsername())) {
+        return ResponseEntity
+                .badRequest()
+                .body(new MessageResponse("Error: Username is already taken!"));
+    }
+
+    String encodedPassword = passwordEncoder.encode(signUpRequest.getPassword());
+
+    // Default role = ROLE_USER if none provided
+    String role = "ROLE_USER";
+    if(signUpRequest.getEmail().equals("Biznest.Creator@admin.com")){
+        role = "ROLE_ADMIN";
+    }
+
+    User user = new User(
+            signUpRequest.getUsername(),
+            signUpRequest.getEmail(),
+            encodedPassword,
+            role
+    );
+
+    userDetailsService.addUser(user);
+
+    System.out.println("User registered: " + user.getUsername());
+    return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+}
+
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {

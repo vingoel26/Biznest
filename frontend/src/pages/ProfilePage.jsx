@@ -18,7 +18,8 @@ const ProfilePage = () => {
     bio: "I'm a business enthusiast who loves discovering new local gems in my community.",
   })
   const [formData, setFormData] = useState({ ...profileData })
-  const isAdmin = localStorage.getItem("isAdmin") === "true"
+  const isAdmin = profileData.username === "BIZNEST.CREATOR"
+  if(isAdmin)localStorage.setItem("isAdmin","true")
 
   // Check if user is logged in
   useEffect(() => {
@@ -385,7 +386,8 @@ const ProfilePage = () => {
                         <p className="text-muted-foreground mb-4">Manage user accounts and permissions</p>
                         <Button
                           className="bg-primary hover:bg-primary/90 flex items-center"
-                          onClick={() => navigate("/dashboard")}
+                          onClick={() => {
+                           navigate("/dashboard")}}
                         >
                           Go to Dashboard
                           <ChevronRight className="ml-2 h-4 w-4" />

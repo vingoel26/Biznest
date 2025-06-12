@@ -13,4 +13,6 @@ public class User {
     private String username;
     private String email;
     private String password; // NOTE: In a real app, store hashed passwords!
+    private String role; 
+
 } 
