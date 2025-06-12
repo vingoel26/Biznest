@@ -20,7 +20,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     static {
         // Note: In a real app, you wouldn't hardcode this. Hash is for "password123"
         String encodedPassword = new BCryptPasswordEncoder().encode("password123");
-        userStore.put("testuser", new User("testuser", "test@example.com", encodedPassword));
+        userStore.put("BIZNEST.CREATOR", new User("BIZNEST.CREATOR", "BIZNEST.CREATOR@admin.com", encodedPassword,"ROLE_ADMIN"));
     }
     // ----------------------------------------------------------
 
