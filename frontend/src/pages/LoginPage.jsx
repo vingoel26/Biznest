@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom"
 import { User, Mail, Lock, ArrowRight, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import logoImg from "/images/logo (2).png"
-
+import axios from "axios";
 const LoginPage = () => {
   const navigate = useNavigate()
   const [isActive, setIsActive] = useState(false)
@@ -30,58 +30,75 @@ const LoginPage = () => {
   }, [navigate])
 
   const handleSignUpSubmit = async (e) => {
-    e.preventDefault()
+    
+    e.preventDefault();
 
     if (!signUpForm.username) {
-      alert("User Name can not be empty")
-      return
+      alert("User Name can not be empty");
+      return;
     }
     if (signUpForm.password.length < 8) {
-      alert("Password needs to be more than 7 characters long!")
-      return
+      alert("Password needs to be more than 7 characters long!");
+      return;
     }
 
     try {
-      // For demo purposes, we'll simulate a successful signup
-      alert("Account created successfully! Please sign in.")
-      setSignUpForm({ username: "", email: "", password: "" })
-      setIsActive(false)
+      const response = await axios.post("http://localhost:8080/api/auth/signup", {
+        username: signUpForm.username,
+        email: signUpForm.email,
+        password: signUpForm.password,
+      });
+
+      alert(response.data.message || "Account created successfully!");
+      setSignUpForm({ username: "", email: "", password: "" });
+      setIsActive(false);
     } catch (error) {
-      console.error("Sign up error:", error)
-      alert("An error occurred during sign up. Please try again.")
+      if (error.response && error.response.data && error.response.data.message) {
+        alert(error.response.data.message);
+      } else {
+        alert("An error occurred during sign up. Please try again.");
+      }
     }
-  }
+  };
+
+
 
   const handleSignInSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!signInForm.username) {
-      alert("User Name can not be empty")
-      return
+      alert("User Name can not be empty");
+      return;
     }
     if (signInForm.password.length < 8) {
-      alert("Password needs to be more than 7 characters long!")
-      return
+      alert("Password needs to be more than 7 characters long!");
+      return;
     }
 
     try {
-      // Check for admin credentials
-      if (signInForm.username === "admin" && signInForm.password === "adminpassword") {
-        localStorage.setItem("isAdmin", "true")
-      }
+      const response = await axios.post("http://localhost:8080/api/auth/login", {
+        username: signInForm.username,
+        password: signInForm.password,
+      });
 
-      // For demo purposes, we'll simulate a successful login
-      alert("Login successful!")
-      localStorage.setItem("jwtToken", "demo-token")
-      localStorage.setItem("username", signInForm.username)
+      const { token, username } = response.data;
 
-      setSignInForm({ username: "", password: "" })
-      navigate("/home")
+      // Store data in localStorage
+      localStorage.setItem("jwtToken", token);
+      localStorage.setItem("username", username);
+
+      alert("Login successful!");
+      setSignInForm({ username: "", password: "" });
+      navigate("/home");
+
     } catch (error) {
-      console.error("Sign in error:", error)
-      alert("An error occurred during sign in. Please try again.")
+      console.error("Login error:", error);
+      alert(
+        error.response?.data?.message || "An error occurred during login. Please try again."
+      );
     }
-  }
+  };
+
 
   const updateSignUpForm = (field, value) => {
     setSignUpForm((prev) => ({ ...prev, [field]: value }))
