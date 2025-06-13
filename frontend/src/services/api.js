@@ -1,8 +1,10 @@
 import axios from "axios"
 
 const api = axios.create({
-  // No baseURL needed if we rely on Vite proxy for all /api calls
-  // baseURL: 'http://localhost:8080',
+  baseURL: "http://localhost:8080", // Update this to match your backend URL
+  headers: {
+    "Content-Type": "application/json",
+  },
 })
 
 // Add a request interceptor to include the token
@@ -29,8 +31,9 @@ api.interceptors.response.use(
       // Clear potentially invalid token and user info
       localStorage.removeItem("jwtToken")
       localStorage.removeItem("username")
+      localStorage.removeItem("isAdmin")
       // Redirect to login page (use window.location as this is outside React components)
-      if (window.location.pathname !== "/login") {
+      if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login"
       }
     }

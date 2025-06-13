@@ -1,8 +1,5 @@
 package com.biznest.backend.dto;
 
-// Using Lombok for boilerplate code reduction (getters, setters, constructors)
-// Make sure Lombok dependency is added to pom.xml if not already present
-// (It's usually included by default with web starter)
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,4 +14,10 @@ public class SignUpRequest {
     private String email;
     private String password;
     
-} 
+    // Optional profile fields
+    private String displayName;
+    private String bio;
+    private String location;
+    private String website;
+    private String profilePicture;
+}

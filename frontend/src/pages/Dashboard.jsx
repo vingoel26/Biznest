@@ -18,11 +18,11 @@ import {
   Lock,
   AlertTriangle,
   X,
-  PieChart,
   TrendingUp,
-  Calendar,
   Filter,
   ChevronDown,
+  UserPlus,
+  Shield,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useListings } from "../context/ListingsContext"
 import { useReviews } from "../context/ReviewsContext"
+import userService from "../services/userService"
 import {
   BarChart,
   Bar,
@@ -82,6 +83,15 @@ const Dashboard = () => {
   const [responseForm, setResponseForm] = useState({ reviewId: null, text: "" })
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
+  // User management state
+  const [users, setUsers] = useState([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [userError, setUserError] = useState(null)
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false)
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false)
+  const [userSearchQuery, setUserSearchQuery] = useState("")
+
   // Admin authentication
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
   const [adminCredentials, setAdminCredentials] = useState({ username: "", password: "" })
@@ -120,6 +130,27 @@ const Dashboard = () => {
     const uniqueBusinesses = [...new Set(reviews.map((review) => review.listingName))]
     setReviewListings(uniqueBusinesses)
   }, [reviews])
+
+  // Fetch users when in users view
+  useEffect(() => {
+    if (view === "users" && isAdmin) {
+      fetchUsers()
+    }
+  }, [view, isAdmin])
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoadingUsers(true)
+      setUserError(null)
+      const fetchedUsers = await userService.getAllUsers()
+      setUsers(fetchedUsers)
+      setIsLoadingUsers(false)
+    } catch (error) {
+      console.error("Failed to fetch users:", error)
+      setUserError("Failed to load users. Please try again.")
+      setIsLoadingUsers(false)
+    }
+  }
 
   const handleNav = (section) => setView(section)
 
@@ -232,11 +263,60 @@ const Dashboard = () => {
     }
   }
 
+  // User management functions
+  const handleViewUser = (user) => {
+    setSelectedUser(user)
+    setIsUserModalOpen(true)
+  }
+
+  const handleEditUserRoles = (user) => {
+    setSelectedUser(user)
+    setIsRoleModalOpen(true)
+  }
+
+  const handleDeleteUser = async (username) => {
+    if (window.confirm(`Are you sure you want to delete user ${username}? This action cannot be undone.`)) {
+      try {
+        await userService.deleteUser(username)
+        fetchUsers() // Refresh the user list
+      } catch (error) {
+        console.error(`Failed to delete user ${username}:`, error)
+        setUserError(`Failed to delete user ${username}. ${error.response?.data?.message || "Please try again."}`)
+      }
+    }
+  }
+
+  const handleUpdateRoles = async (e) => {
+    e.preventDefault()
+
+    const form = e.target
+    const isAdmin = form.isAdmin.checked
+
+    try {
+      // Fix: Send an array of roles instead of an object
+      const roles = isAdmin ? ["ROLE_USER", "ROLE_ADMIN"] : ["ROLE_USER"]
+      await userService.updateUserRoles(selectedUser.username, roles)
+      setIsRoleModalOpen(false)
+      fetchUsers() // Refresh the user list
+    } catch (error) {
+      console.error(`Failed to update roles for ${selectedUser.username}:`, error)
+      setUserError(`Failed to update roles. ${error.response?.data?.message || "Please try again."}`)
+    }
+  }
+
   const filteredListings = listings.filter(
     (listing) =>
       listing.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.location.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
+
+  // Filter users based on search query
+  const filteredUsers = users.filter(
+    (user) =>
+      user.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      (user.displayName && user.displayName.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(userSearchQuery.toLowerCase())),
   )
 
   // Filter reviews based on selected filters
@@ -489,6 +569,16 @@ const Dashboard = () => {
                           <span>Categories</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => handleNav("users")}
+                          isActive={view === "users"}
+                          className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
+                        >
+                          <Users />
+                          <span>Users</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -571,6 +661,7 @@ const Dashboard = () => {
                     {view === "categories" && "Categories"}
                     {view === "analytics" && "Analytics"}
                     {view === "reviews" && "Reviews"}
+                    {view === "users" && "User Management"}
                   </h1>
 
                   <div className="flex items-center gap-4">
@@ -586,10 +677,36 @@ const Dashboard = () => {
                         />
                       </div>
                     )}
-                    <Button onClick={openModal} className="bg-primary hover:bg-primary/90 flex items-center">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Listing
-                    </Button>
+
+                    {view === "users" && (
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search users..."
+                          className="pl-10 pr-4 py-2 rounded-lg bg-background border border-input text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {view === "listings" && (
+                      <Button onClick={openModal} className="bg-primary hover:bg-primary/90 flex items-center">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Listing
+                      </Button>
+                    )}
+
+                    {view === "users" && (
+                      <Button
+                        onClick={() => navigate("/login")}
+                        className="bg-primary hover:bg-primary/90 flex items-center"
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Add User
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -610,44 +727,64 @@ const Dashboard = () => {
                       />
                       <MetricCard
                         title="Active Users"
-                        value={metrics.active}
+                        value={users.length || metrics.active}
                         icon={<Users className="h-6 w-6 text-blue-400" />}
                         trend="+12% from last month"
                       />
                       <MetricCard
-                        title="Reviews"
-                        value={reviews.length}
-                        icon={<MessageSquare className="h-6 w-6 text-amber-400" />}
-                        trend="Growing engagement"
+                        title="Average Rating"
+                        value={metrics.rating}
+                        icon={<Star className="h-6 w-6 text-yellow-400" />}
+                        trend="+0.2 from last month"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                      <div className="lg:col-span-2 bg-card rounded-xl shadow-sm border border-border p-6">
-                        <h2 className="text-lg font-semibold mb-4 text-white">Category-wise Listings</h2>
-                        <div className="h-64">
+                      <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-lg font-semibold text-card-foreground">Monthly Growth</h2>
+                          <div className="text-xs text-muted-foreground bg-accent px-2 py-1 rounded-md">
+                            Last 12 months
+                          </div>
+                        </div>
+                        <div className="h-80">
                           <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={categoryChartData}>
+                            <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
-                              <XAxis dataKey="name" stroke={getChartColors().textColor} />
-                              <YAxis stroke={getChartColors().textColor} />
+                              <XAxis
+                                dataKey="name"
+                                tick={{ fill: getChartColors().textColor }}
+                                axisLine={{ stroke: getChartColors().gridColor }}
+                              />
+                              <YAxis
+                                tick={{ fill: getChartColors().textColor }}
+                                axisLine={{ stroke: getChartColors().gridColor }}
+                              />
                               <Tooltip
                                 contentStyle={{
                                   backgroundColor: getChartColors().tooltipBg,
                                   borderColor: getChartColors().tooltipBorder,
+                                  color: getChartColors().tooltipText,
                                 }}
-                                labelStyle={{ color: getChartColors().tooltipText }}
                               />
                               <Legend />
-                              <Bar dataKey="count" fill={getChartColors().barColor} name="Listings" />
-                            </BarChart>
+                              <Line
+                                type="monotone"
+                                dataKey="listings"
+                                stroke={getChartColors().lineColor}
+                                strokeWidth={2}
+                                activeDot={{ r: 8 }}
+                              />
+                            </LineChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
 
-                      <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-                        <h2 className="text-lg font-semibold mb-4 text-white">Listing Distribution</h2>
-                        <div className="h-64">
+                      <div className="bg-card border border-border rounded-xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-lg font-semibold text-card-foreground">Category Distribution</h2>
+                        </div>
+                        <div className="h-80">
                           <ResponsiveContainer width="100%" height="100%">
                             <RPieChart>
                               <Pie
@@ -658,15 +795,18 @@ const Dashboard = () => {
                                 outerRadius={80}
                                 fill="#8884d8"
                                 dataKey="value"
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                               >
                                 {pieData.map((entry, index) => (
                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                               </Pie>
                               <Tooltip
-                                contentStyle={{ backgroundColor: "#333", borderColor: "#555" }}
-                                labelStyle={{ color: "#fff" }}
+                                contentStyle={{
+                                  backgroundColor: getChartColors().tooltipBg,
+                                  borderColor: getChartColors().tooltipBorder,
+                                  color: getChartColors().tooltipText,
+                                }}
                               />
                             </RPieChart>
                           </ResponsiveContainer>
@@ -674,207 +814,318 @@ const Dashboard = () => {
                       </div>
                     </div>
 
-                    <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
-                      <div className="p-6 border-b border-border">
-                        <h2 className="text-lg font-semibold text-card-foreground">Recent Listings</h2>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full dashboard-table">
-                          <thead>
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Business Name
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Category
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Location
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Status
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {listings.slice(-3).map((listing) => (
-                              <tr key={listing.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-card-foreground">
-                                  {listing.name}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
-                                  {listing.category}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
-                                  {listing.location}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span
-                                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      listing.status === "Approved" ? "status-approved" : "status-pending"
-                                    }`}
-                                  >
-                                    {listing.status}
-                                  </span>
-                                </td>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-card border border-border rounded-xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-lg font-semibold text-card-foreground">Recent Listings</h2>
+                          <Button variant="outline" size="sm" className="text-xs" onClick={() => handleNav("listings")}>
+                            View All
+                          </Button>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-border">
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Name
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Category
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Location
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Status
+                                </th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {listings.slice(0, 5).map((listing) => (
+                                <tr key={listing.id} className="border-b border-border hover:bg-accent/50">
+                                  <td className="py-3 px-4 text-foreground">{listing.name}</td>
+                                  <td className="py-3 px-4 text-foreground">{listing.category}</td>
+                                  <td className="py-3 px-4 text-foreground">{listing.location}</td>
+                                  <td className="py-3 px-4">
+                                    <span
+                                      className={`px-2 py-1 text-xs rounded-full ${
+                                        listing.status === "Approved"
+                                          ? "bg-green-500/20 text-green-500"
+                                          : listing.status === "Pending"
+                                            ? "bg-yellow-500/20 text-yellow-500"
+                                            : "bg-red-500/20 text-red-500"
+                                      }`}
+                                    >
+                                      {listing.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="bg-card border border-border rounded-xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-lg font-semibold text-card-foreground">Recent Reviews</h2>
+                          <Button variant="outline" size="sm" className="text-xs" onClick={() => handleNav("reviews")}>
+                            View All
+                          </Button>
+                        </div>
+                        <div className="space-y-4">
+                          {reviews.slice(0, 3).map((review) => (
+                            <div key={review.id} className="border border-border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h3 className="font-medium text-card-foreground">{review.userName}</h3>
+                                  <p className="text-sm text-muted-foreground">{review.listingName}</p>
+                                </div>
+                                <div className="flex items-center">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`h-4 w-4 ${
+                                        i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              <p className="text-sm text-card-foreground mb-2">{review.text}</p>
+                              <p className="text-xs text-muted-foreground">{formatDate(review.date)}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </>
                 )}
 
                 {view === "listings" && (
-                  <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
-                    <div className="p-6 border-b border-border">
-                      <h2 className="text-lg font-semibold text-card-foreground">All Listings</h2>
-                    </div>
-                    {filteredListings.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full dashboard-table">
-                          <thead>
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Business Name
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Category
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Location
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {filteredListings.map((listing) => (
-                              <tr key={listing.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-card-foreground">
-                                  {listing.name}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
-                                  {listing.category}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
-                                  {listing.location}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span
-                                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      listing.status === "Approved" ? "status-approved" : "status-pending"
-                                    }`}
-                                  >
-                                    {listing.status}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="bg-card border border-border rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-accent/50">
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                              Name
+                            </th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                              Category
+                            </th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                              Location
+                            </th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                              Status
+                            </th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                              Rating
+                            </th>
+                            <th className="text-right py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredListings.map((listing) => (
+                            <tr key={listing.id} className="border-t border-border hover:bg-accent/50">
+                              <td className="py-3 px-4 text-foreground">{listing.name}</td>
+                              <td className="py-3 px-4 text-foreground">{listing.category}</td>
+                              <td className="py-3 px-4 text-foreground">{listing.location}</td>
+                              <td className="py-3 px-4">
+                                <span
+                                  className={`px-2 py-1 text-xs rounded-full ${
+                                    listing.status === "Approved"
+                                      ? "bg-green-500/20 text-green-500"
+                                      : listing.status === "Pending"
+                                        ? "bg-yellow-500/20 text-yellow-500"
+                                        : "bg-red-500/20 text-red-500"
+                                  }`}
+                                >
+                                  {listing.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`h-4 w-4 ${
+                                        i < Math.floor(listing.rating)
+                                          ? "text-yellow-400 fill-yellow-400"
+                                          : "text-gray-300"
+                                      }`}
+                                    />
+                                  ))}
+                                  <span className="ml-2 text-sm text-muted-foreground">{listing.rating}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex justify-end space-x-2">
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
+                                    className="h-8 w-8 p-0"
                                     onClick={() => handleEdit(listing.id)}
-                                    className="text-primary hover:text-primary/80 hover:bg-primary/10 mr-2"
                                   >
                                     <Edit className="h-4 w-4" />
                                     <span className="sr-only">Edit</span>
                                   </Button>
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
+                                    className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500/10"
                                     onClick={() => handleDelete(listing.id)}
-                                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                   >
                                     <Trash className="h-4 w-4" />
                                     <span className="sr-only">Delete</span>
                                   </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="p-6 text-center text-muted-foreground">
-                        No listings found matching your search criteria.
-                      </div>
-                    )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
                 {view === "categories" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {categories.map((category) => (
-                      <div
-                        key={category}
-                        className="bg-white/5 rounded-xl shadow-sm border border-purple-500/20 p-6 text-center"
-                      >
-                        <div className="mb-4">
-                          <Store className="h-12 w-12 mx-auto text-purple-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-white mb-2">{category}</h3>
-                        <p className="text-3xl font-bold text-purple-400 mb-1">{categoryCounts[category]}</p>
-                        <p className="text-sm text-gray-400">
-                          {categoryCounts[category] === 1 ? "Listing" : "Listings"}
-                        </p>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-card border border-border rounded-xl p-6">
+                      <h2 className="text-lg font-semibold text-card-foreground mb-6">Category Distribution</h2>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={categoryChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
+                            <XAxis
+                              dataKey="name"
+                              tick={{ fill: getChartColors().textColor }}
+                              axisLine={{ stroke: getChartColors().gridColor }}
+                            />
+                            <YAxis
+                              tick={{ fill: getChartColors().textColor }}
+                              axisLine={{ stroke: getChartColors().gridColor }}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: getChartColors().tooltipBg,
+                                borderColor: getChartColors().tooltipBorder,
+                                color: getChartColors().tooltipText,
+                              }}
+                            />
+                            <Legend />
+                            <Bar dataKey="count" fill={getChartColors().barColor} />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
-                    ))}
-                    <div className="category-box bg-black/20 rounded-xl border border-dashed border-purple-500/30 p-6 flex flex-col items-center justify-center">
-                      <Plus className="h-12 w-12 text-gray-500 mb-4" />
-                      <p className="text-muted-foreground mb-4">Add New Category</p>
-                      <Button variant="outline" className="border-purple-500 text-primary hover:bg-primary/10">
-                        Create Category
-                      </Button>
+                    </div>
+
+                    <div className="bg-card border border-border rounded-xl p-6">
+                      <h2 className="text-lg font-semibold text-card-foreground mb-6">Categories</h2>
+                      <div className="space-y-4">
+                        {categories.map((category) => (
+                          <div
+                            key={category}
+                            className="flex items-center justify-between p-4 border border-border rounded-lg"
+                          >
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mr-4">
+                                <Store className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-card-foreground">{category}</h3>
+                                <p className="text-sm text-muted-foreground">{categoryCounts[category]} listings</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => {
+                                setSearchQuery(category)
+                                handleNav("listings")
+                              }}
+                            >
+                              View Listings
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {view === "analytics" && (
-                  <>
-                    <div className="bg-card rounded-xl shadow-sm border border-border p-6 mb-8">
-                      <h2 className="text-lg font-semibold mb-6 text-white">Listings Growth Over Time</h2>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={monthlyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
-                            <XAxis dataKey="name" stroke={getChartColors().textColor} />
-                            <YAxis stroke={getChartColors().textColor} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: getChartColors().tooltipBg,
-                                borderColor: getChartColors().tooltipBorder,
-                              }}
-                              labelStyle={{ color: getChartColors().tooltipText }}
-                            />
-                            <Legend />
-                            <Line
-                              type="monotone"
-                              dataKey="listings"
-                              stroke={getChartColors().lineColor}
-                              strokeWidth={2}
-                              activeDot={{ r: 8 }}
-                              name="Total Listings"
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <MetricCard
+                        title="Total Listings"
+                        value={metrics.total}
+                        icon={<Store className="h-6 w-6 text-purple-400" />}
+                        trend="+5% from last month"
+                      />
+                      <MetricCard
+                        title="Total Users"
+                        value={users.length || metrics.active}
+                        icon={<Users className="h-6 w-6 text-blue-400" />}
+                        trend="+12% from last month"
+                      />
+                      <MetricCard
+                        title="Total Reviews"
+                        value={reviews.length}
+                        icon={<MessageSquare className="h-6 w-6 text-green-400" />}
+                        trend="+8% from last month"
+                      />
+                      <MetricCard
+                        title="Average Rating"
+                        value={metrics.rating}
+                        icon={<Star className="h-6 w-6 text-yellow-400" />}
+                        trend="+0.2 from last month"
+                      />
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                      <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <h2 className="text-lg font-semibold text-white">Category Distribution</h2>
-                          <div className="flex items-center space-x-2">
-                            <PieChart className="h-5 w-5 text-purple-400" />
-                            <span className="text-sm text-gray-300">Pie Chart</span>
-                          </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-card border border-border rounded-xl p-6">
+                        <h2 className="text-lg font-semibold text-card-foreground mb-6">Monthly Growth</h2>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
+                              <XAxis
+                                dataKey="name"
+                                tick={{ fill: getChartColors().textColor }}
+                                axisLine={{ stroke: getChartColors().gridColor }}
+                              />
+                              <YAxis
+                                tick={{ fill: getChartColors().textColor }}
+                                axisLine={{ stroke: getChartColors().gridColor }}
+                              />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: getChartColors().tooltipBg,
+                                  borderColor: getChartColors().tooltipBorder,
+                                  color: getChartColors().tooltipText,
+                                }}
+                              />
+                              <Legend />
+                              <Line
+                                type="monotone"
+                                dataKey="listings"
+                                stroke={getChartColors().lineColor}
+                                strokeWidth={2}
+                                activeDot={{ r: 8 }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
                         </div>
-                        <div className="h-64">
+                      </div>
+
+                      <div className="bg-card border border-border rounded-xl p-6">
+                        <h2 className="text-lg font-semibold text-card-foreground mb-6">Category Distribution</h2>
+                        <div className="h-80">
                           <ResponsiveContainer width="100%" height="100%">
                             <RPieChart>
                               <Pie
@@ -885,225 +1136,313 @@ const Dashboard = () => {
                                 outerRadius={80}
                                 fill="#8884d8"
                                 dataKey="value"
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                               >
                                 {pieData.map((entry, index) => (
                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                               </Pie>
                               <Tooltip
-                                contentStyle={{ backgroundColor: "#333", borderColor: "#555" }}
-                                labelStyle={{ color: "#fff" }}
+                                contentStyle={{
+                                  backgroundColor: getChartColors().tooltipBg,
+                                  borderColor: getChartColors().tooltipBorder,
+                                  color: getChartColors().tooltipText,
+                                }}
                               />
                             </RPieChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <h2 className="text-lg font-semibold text-white">User Activity</h2>
-                          <div className="flex items-center space-x-2">
-                            <TrendingUp className="h-5 w-5 text-green-400" />
-                            <span className="text-sm text-gray-300">Growing</span>
+                    <div className="bg-card border border-border rounded-xl p-6">
+                      <h2 className="text-lg font-semibold text-card-foreground mb-6">Performance Metrics</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="border border-border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-medium text-card-foreground">User Growth</h3>
+                            <TrendingUp className="h-5 w-5 text-green-500" />
                           </div>
+                          <p className="text-3xl font-bold text-card-foreground mb-2">+24%</p>
+                          <p className="text-sm text-muted-foreground">Compared to last quarter</p>
                         </div>
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={[
-                                { name: "Mon", visits: 120 },
-                                { name: "Tue", visits: 150 },
-                                { name: "Wed", visits: 180 },
-                                { name: "Thu", visits: 210 },
-                                { name: "Fri", visits: 250 },
-                                { name: "Sat", visits: 300 },
-                                { name: "Sun", visits: 280 },
-                              ]}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                              <XAxis dataKey="name" stroke="#aaa" />
-                              <YAxis stroke="#aaa" />
-                              <Tooltip
-                                contentStyle={{ backgroundColor: "#333", borderColor: "#555" }}
-                                labelStyle={{ color: "#fff" }}
-                              />
-                              <Legend />
-                              <Bar dataKey="visits" fill="#10b981" name="User Visits" />
-                            </BarChart>
-                          </ResponsiveContainer>
+
+                        <div className="border border-border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-medium text-card-foreground">Listing Growth</h3>
+                            <TrendingUp className="h-5 w-5 text-green-500" />
+                          </div>
+                          <p className="text-3xl font-bold text-card-foreground mb-2">+18%</p>
+                          <p className="text-sm text-muted-foreground">Compared to last quarter</p>
+                        </div>
+
+                        <div className="border border-border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-medium text-card-foreground">Review Growth</h3>
+                            <TrendingUp className="h-5 w-5 text-green-500" />
+                          </div>
+                          <p className="text-3xl font-bold text-card-foreground mb-2">+32%</p>
+                          <p className="text-sm text-muted-foreground">Compared to last quarter</p>
                         </div>
                       </div>
                     </div>
-
-                    <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-                      <h2 className="text-lg font-semibold mb-4 text-white dark:text-white light:text-foreground">
-                        Performance Metrics
-                      </h2>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="analytics-box bg-black/20 rounded-lg p-4 border border-purple-500/20">
-                          <h3 className="text-sm font-medium text-gray-300 mb-2">Average Rating</h3>
-                          <div className="flex items-center">
-                            <Star className="h-5 w-5 text-yellow-400 mr-2" />
-                            <span className="text-2xl font-bold text-card-foreground">4.7</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">+0.2 from last month</p>
-                        </div>
-                        <div className="analytics-box bg-black/20 rounded-lg p-4 border border-purple-500/20">
-                          <h3 className="text-sm font-medium text-gray-300 mb-2">Conversion Rate</h3>
-                          <div className="flex items-center">
-                            <TrendingUp className="h-5 w-5 text-green-400 mr-2" />
-                            <span className="text-2xl font-bold text-card-foreground">12.8%</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">+2.3% from last month</p>
-                        </div>
-                        <div className="analytics-box bg-black/20 rounded-lg p-4 border border-purple-500/20">
-                          <h3 className="text-sm font-medium text-gray-300 mb-2">User Retention</h3>
-                          <div className="flex items-center">
-                            <Users className="h-5 w-5 text-blue-400 mr-2" />
-                            <span className="text-2xl font-bold text-card-foreground">85%</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">+5% from last month</p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 {view === "reviews" && (
-                  <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
-                    <div className="p-6 border-b border-border">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h2 className="text-lg font-semibold text-card-foreground">Customer Reviews</h2>
-                        <div className="relative">
-                          <Button
-                            variant="outline"
-                            className="flex items-center gap-2"
-                            onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                          >
-                            <Filter className="h-4 w-4" />
-                            <span>Filter Reviews</span>
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-
-                          {isFilterMenuOpen && (
-                            <div className="absolute right-0 mt-2 w-64 bg-card rounded-lg shadow-lg border border-border z-10 p-4">
-                              <h3 className="text-sm font-medium mb-3 text-card-foreground">Filter Options</h3>
-
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="text-sm text-muted-foreground block mb-1">Business</label>
-                                  <select
-                                    value={reviewFilter}
-                                    onChange={(e) => setReviewFilter(e.target.value)}
-                                    className="w-full bg-background border border-input rounded-md text-foreground text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
-                                  >
-                                    <option value="all">All Businesses</option>
-                                    {reviewListings.map((business, index) => (
-                                      <option key={index} value={business}>
-                                        {business}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label className="text-sm text-muted-foreground block mb-1">Rating</label>
-                                  <select
-                                    value={ratingFilter}
-                                    onChange={(e) => setRatingFilter(e.target.value)}
-                                    className="w-full bg-background border border-input rounded-md text-foreground text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
-                                  >
-                                    <option value="all">All Ratings</option>
-                                    <option value="5">5 Stars</option>
-                                    <option value="4">4 Stars</option>
-                                    <option value="3">3 Stars</option>
-                                    <option value="2">2 Stars</option>
-                                    <option value="1">1 Star</option>
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label className="text-sm text-muted-foreground block mb-1">Time Period</label>
-                                  <select
-                                    value={dateFilter}
-                                    onChange={(e) => setDateFilter(e.target.value)}
-                                    className="w-full bg-background border border-input rounded-md text-foreground text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
-                                  >
-                                    <option value="all">All Time</option>
-                                    <option value="today">Today</option>
-                                    <option value="week">Last 7 Days</option>
-                                    <option value="month">Last 30 Days</option>
-                                  </select>
-                                </div>
-
-                                <div className="pt-2 flex justify-end">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mr-2"
-                                    onClick={() => {
-                                      setReviewFilter("all")
-                                      setRatingFilter("all")
-                                      setDateFilter("all")
-                                    }}
-                                  >
-                                    Reset
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    className="bg-primary hover:bg-primary/90"
-                                    onClick={() => setIsFilterMenuOpen(false)}
-                                  >
-                                    Apply
-                                  </Button>
+                  <div className="space-y-6">
+                    <div className="bg-card border border-border rounded-xl p-6">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                        <h2 className="text-lg font-semibold text-card-foreground mb-4 sm:mb-0">All Reviews</h2>
+                        <div className="flex flex-wrap gap-2">
+                          <div className="relative">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center"
+                              onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                            >
+                              <Filter className="h-4 w-4 mr-2" />
+                              Filter
+                              <ChevronDown className="h-4 w-4 ml-2" />
+                            </Button>
+                            {isFilterMenuOpen && (
+                              <div className="absolute right-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-10 p-4">
+                                <div className="space-y-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-card-foreground mb-1">
+                                      Business
+                                    </label>
+                                    <select
+                                      className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
+                                      value={reviewFilter}
+                                      onChange={(e) => setReviewFilter(e.target.value)}
+                                    >
+                                      <option value="all">All Businesses</option>
+                                      {reviewListings.map((business) => (
+                                        <option key={business} value={business}>
+                                          {business}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-card-foreground mb-1">
+                                      Rating
+                                    </label>
+                                    <select
+                                      className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
+                                      value={ratingFilter}
+                                      onChange={(e) => setRatingFilter(e.target.value)}
+                                    >
+                                      <option value="all">All Ratings</option>
+                                      <option value="5">5 Stars</option>
+                                      <option value="4">4 Stars</option>
+                                      <option value="3">3 Stars</option>
+                                      <option value="2">2 Stars</option>
+                                      <option value="1">1 Star</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-card-foreground mb-1">Date</label>
+                                    <select
+                                      className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
+                                      value={dateFilter}
+                                      onChange={(e) => setDateFilter(e.target.value)}
+                                    >
+                                      <option value="all">All Time</option>
+                                      <option value="today">Today</option>
+                                      <option value="week">This Week</option>
+                                      <option value="month">This Month</option>
+                                    </select>
+                                  </div>
+                                  <div className="pt-2 flex justify-end">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs"
+                                      onClick={() => {
+                                        setReviewFilter("all")
+                                        setRatingFilter("all")
+                                        setDateFilter("all")
+                                      }}
+                                    >
+                                      Reset Filters
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h3 className="text-lg font-medium text-card-foreground">
-                            {reviewFilter === "all" ? "All Reviews" : `Reviews for ${reviewFilter}`}
-                            {ratingFilter !== "all" && ` - ${ratingFilter} Stars`}
-                            {dateFilter !== "all" &&
-                              ` - ${
-                                dateFilter === "today"
-                                  ? "Today"
-                                  : dateFilter === "week"
-                                    ? "Last 7 Days"
-                                    : "Last 30 Days"
-                              }`}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Showing {filteredReviews.length} {filteredReviews.length === 1 ? "review" : "reviews"}
-                          </p>
-                        </div>
-                        <Button className="bg-primary hover:bg-primary/90">Export Reviews</Button>
                       </div>
 
                       <div className="space-y-6">
-                        {filteredReviews.length > 0 ? (
-                          filteredReviews.map((review) => (
-                            <ReviewCard
-                              key={review.id}
-                              review={review}
-                              onReply={() => openResponseModal(review.id)}
-                              onDelete={() => handleDeleteReview(review.id)}
-                              formatDate={formatDate}
-                            />
-                          ))
-                        ) : (
-                          <div className="text-center py-12 bg-background border border-border rounded-lg">
-                            <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                            <p className="text-muted-foreground">No reviews found matching your criteria.</p>
+                        {filteredReviews.length === 0 ? (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No reviews match your filters.</p>
                           </div>
+                        ) : (
+                          filteredReviews.map((review) => (
+                            <div key={review.id} className="border border-border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <div className="flex items-center mb-1">
+                                    <h3 className="font-medium text-card-foreground">{review.userName}</h3>
+                                    <span className="mx-2 text-muted-foreground">•</span>
+                                    <p className="text-sm text-muted-foreground">{formatDate(review.date)}</p>
+                                  </div>
+                                  <p className="text-sm text-primary mb-1">{review.listingName}</p>
+                                  <div className="flex items-center">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`h-4 w-4 ${
+                                          i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => openResponseModal(review.id)}
+                                  >
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span className="sr-only">Respond</span>
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500/10"
+                                    onClick={() => handleDeleteReview(review.id)}
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                    <span className="sr-only">Delete</span>
+                                  </Button>
+                                </div>
+                              </div>
+                              <p className="text-card-foreground mb-4">{review.text}</p>
+                              {review.response && (
+                                <div className="bg-accent/50 rounded-lg p-3 mt-2">
+                                  <div className="flex items-center mb-1">
+                                    <h4 className="text-sm font-medium text-card-foreground">Business Response</h4>
+                                    <span className="mx-2 text-muted-foreground">•</span>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatDate(review.responseDate || new Date())}
+                                    </p>
+                                  </div>
+                                  <p className="text-sm text-card-foreground">{review.response}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {view === "users" && (
+                  <div className="space-y-6">
+                    {userError && (
+                      <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg">
+                        {userError}
+                      </div>
+                    )}
+
+                    <div className="bg-card border border-border rounded-xl overflow-hidden">
+                      {isLoadingUsers ? (
+                        <div className="flex items-center justify-center p-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                          <span className="ml-3 text-muted-foreground">Loading users...</span>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="bg-accent/50">
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Username
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Display Name
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Email
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Role
+                                </th>
+                                <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Created
+                                </th>
+                                <th className="text-right py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredUsers.map((user) => (
+                                <tr key={user.id} className="border-t border-border hover:bg-accent/50">
+                                  <td className="py-3 px-4 text-foreground">{user.username}</td>
+                                  <td className="py-3 px-4 text-foreground">{user.displayName || "-"}</td>
+                                  <td className="py-3 px-4 text-foreground">{user.email}</td>
+                                  <td className="py-3 px-4">
+                                    {user.roles && user.roles.includes("ROLE_ADMIN") ? (
+                                      <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-500">
+                                        Admin
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-500">
+                                        User
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-foreground">
+                                    {user.createdAt ? formatDate(user.createdAt) : "-"}
+                                  </td>
+                                  <td className="py-3 px-4 text-right">
+                                    <div className="flex justify-end space-x-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => handleViewUser(user)}
+                                      >
+                                        <Users className="h-4 w-4" />
+                                        <span className="sr-only">View</span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => handleEditUserRoles(user)}
+                                      >
+                                        <Shield className="h-4 w-4" />
+                                        <span className="sr-only">Edit Roles</span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500/10"
+                                        onClick={() => handleDeleteUser(user.username)}
+                                        disabled={user.roles && user.roles.includes("ROLE_ADMIN")}
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                        <span className="sr-only">Delete</span>
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1111,51 +1450,87 @@ const Dashboard = () => {
             </div>
           </div>
         </SidebarProvider>
+
+        {/* Add/Edit Listing Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4 border border-border">
-              <div className="p-6 border-b border-border">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card rounded-xl shadow-lg max-w-2xl w-full mx-4">
+              <div className="p-6 border-b border-border flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-card-foreground">
                   {isEditMode ? "Edit Listing" : "Add New Listing"}
                 </h2>
+                <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
               <form onSubmit={handleSubmit}>
                 <div className="p-6 space-y-4">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Business Name
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Business Name
+                      </label>
+                      <input
+                        type="text"
+                        id="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="category" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Category
+                      </label>
+                      <select
+                        id="category"
+                        value={formData.category}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        required
+                      >
+                        <option value="">Select a category</option>
+                        <option value="Restaurant">Restaurant</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Beauty">Beauty</option>
+                        <option value="Automotive">Automotive</option>
+                        <option value="Home Services">Home Services</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="category" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Category
-                    </label>
-                    <select
-                      id="category"
-                      value={formData.category}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select category</option>
-                      <option value="Restaurants">Restaurants</option>
-                      <option value="Shopping">Shopping</option>
-                      <option value="Health & Beauty">Health & Beauty</option>
-                      <option value="Automotive">Automotive</option>
-                      <option value="Education">Education</option>
-                      <option value="Accommodation">Accommodation</option>
-                      <option value="Entertainment">Entertainment</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="location" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        id="location"
+                        value={formData.location}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="status" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Status
+                      </label>
+                      <select
+                        id="status"
+                        value={formData.status}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="Approved">Approved</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>
@@ -1166,58 +1541,24 @@ const Dashboard = () => {
                       id="desc"
                       value={formData.desc}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                      rows="2"
+                      rows="3"
+                      className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     ></textarea>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="location" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Location
+                      <label htmlFor="address" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Address
                       </label>
                       <input
                         type="text"
-                        id="location"
-                        value={formData.location}
+                        id="address"
+                        value={formData.address}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        required
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
-
-                    <div>
-                      <label htmlFor="rating" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Rating (1-5)
-                      </label>
-                      <input
-                        type="number"
-                        id="rating"
-                        min="1"
-                        max="5"
-                        step="0.1"
-                        value={formData.rating}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="address" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      id="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                      placeholder="Full address"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-muted-foreground mb-1">
                         Phone
@@ -1227,40 +1568,56 @@ const Dashboard = () => {
                         id="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        placeholder="+1 (555) 123-4567"
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="hours" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Hours
+                        Business Hours
                       </label>
                       <input
                         type="text"
                         id="hours"
                         value={formData.hours}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        placeholder="9:00 AM - 5:00 PM"
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        placeholder="e.g. 9:00 AM - 5:00 PM"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="rating" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Rating
+                      </label>
+                      <input
+                        type="number"
+                        id="rating"
+                        value={formData.rating}
+                        onChange={handleChange}
+                        min="1"
+                        max="5"
+                        step="0.1"
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="status" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Status
+                    <label htmlFor="image" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Image URL
                     </label>
-                    <select
-                      id="status"
-                      value={formData.status}
+                    <input
+                      type="text"
+                      id="image"
+                      value={formData.image}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                      required
-                    >
-                      <option value="Approved">Approved</option>
-                      <option value="Pending">Pending</option>
-                    </select>
+                      className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Leave empty to use default image for the category
+                    </p>
                   </div>
                 </div>
 
@@ -1268,13 +1625,13 @@ const Dashboard = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-input text-foreground hover:bg-accent"
                     onClick={() => setIsModalOpen(false)}
+                    className="border-border text-foreground hover:bg-accent"
                   >
                     Cancel
                   </Button>
                   <Button type="submit" className="bg-primary hover:bg-primary/90">
-                    {isEditMode ? "Save Changes" : "Add Listing"}
+                    {isEditMode ? "Update Listing" : "Add Listing"}
                   </Button>
                 </div>
               </form>
@@ -1284,10 +1641,13 @@ const Dashboard = () => {
 
         {/* Response Modal */}
         {isResponseModalOpen && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4 border border-border">
-              <div className="p-6 border-b border-border">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4">
+              <div className="p-6 border-b border-border flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-card-foreground">Respond to Review</h2>
+                <button onClick={closeResponseModal} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
               <form onSubmit={handleResponseSubmit}>
@@ -1300,10 +1660,10 @@ const Dashboard = () => {
                       id="response"
                       value={responseForm.text}
                       onChange={handleResponseChange}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                       rows="4"
-                      placeholder="Thank you for your feedback..."
+                      className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       required
+                      placeholder="Type your response to this review..."
                     ></textarea>
                   </div>
                 </div>
@@ -1312,13 +1672,195 @@ const Dashboard = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-input text-foreground hover:bg-accent"
                     onClick={closeResponseModal}
+                    className="border-border text-foreground hover:bg-accent"
                   >
                     Cancel
                   </Button>
                   <Button type="submit" className="bg-primary hover:bg-primary/90">
                     Submit Response
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* View User Modal */}
+        {isUserModalOpen && selectedUser && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4">
+              <div className="p-6 border-b border-border flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-card-foreground">User Details</h2>
+                <button
+                  onClick={() => setIsUserModalOpen(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="flex justify-center mb-6">
+                  <div className="h-24 w-24 rounded-full bg-accent flex items-center justify-center">
+                    <img
+                      src={selectedUser.profilePicture || "/images/defaultUserPicture.png"}
+                      alt={selectedUser.username}
+                      className="h-24 w-24 rounded-full object-cover"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Username</p>
+                    <p className="font-medium text-card-foreground">{selectedUser.username}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Display Name</p>
+                    <p className="font-medium text-card-foreground">{selectedUser.displayName || "-"}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium text-card-foreground">{selectedUser.email}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Role</p>
+                    <div className="flex items-center mt-1">
+                      {selectedUser.roles && selectedUser.roles.includes("ROLE_ADMIN") ? (
+                        <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-500">Admin</span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-500">User</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedUser.location && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Location</p>
+                      <p className="font-medium text-card-foreground">{selectedUser.location}</p>
+                    </div>
+                  )}
+
+                  {selectedUser.bio && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Bio</p>
+                      <p className="font-medium text-card-foreground">{selectedUser.bio}</p>
+                    </div>
+                  )}
+
+                  {selectedUser.website && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Website</p>
+                      <a
+                        href={selectedUser.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {selectedUser.website}
+                      </a>
+                    </div>
+                  )}
+
+                  {selectedUser.createdAt && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Member Since</p>
+                      <p className="font-medium text-card-foreground">{formatDate(selectedUser.createdAt)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-border flex justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsUserModalOpen(false)}
+                  className="border-border text-foreground hover:bg-accent"
+                >
+                  Close
+                </Button>
+                <Button
+                  className="bg-primary hover:bg-primary/90"
+                  onClick={() => {
+                    setIsUserModalOpen(false)
+                    handleEditUserRoles(selectedUser)
+                  }}
+                >
+                  Edit Roles
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit User Roles Modal */}
+        {isRoleModalOpen && selectedUser && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4">
+              <div className="p-6 border-b border-border flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-card-foreground">Edit User Roles</h2>
+                <button
+                  onClick={() => setIsRoleModalOpen(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateRoles}>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center mb-2">
+                    <p className="font-medium text-card-foreground">User: {selectedUser.username}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="isAdmin"
+                        name="isAdmin"
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        defaultChecked={selectedUser.roles && selectedUser.roles.includes("ROLE_ADMIN")}
+                      />
+                      <label htmlFor="isAdmin" className="ml-2 block text-sm text-card-foreground">
+                        Administrator Role
+                      </label>
+                    </div>
+
+                    <div className="bg-accent/50 rounded-lg p-4 mt-4">
+                      <div className="flex items-center mb-2">
+                        <Shield className="h-5 w-5 text-yellow-500 mr-2" />
+                        <h3 className="font-medium text-card-foreground">Role Permissions</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Administrators have the following additional permissions:
+                      </p>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Manage all users (view, edit roles, delete)</li>
+                        <li>Access to all dashboard features</li>
+                        <li>Manage business listings and reviews</li>
+                        <li>View analytics and reports</li>
+                        <li>System configuration</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 border-t border-border flex justify-end space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsRoleModalOpen(false)}
+                    className="border-border text-foreground hover:bg-accent"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-primary hover:bg-primary/90">
+                    Update Roles
                   </Button>
                 </div>
               </form>
@@ -1332,78 +1874,18 @@ const Dashboard = () => {
   return content
 }
 
-function ReviewCard({ review, onReply, onDelete, formatDate }) {
+// Metric Card Component
+const MetricCard = ({ title, value, icon, trend }) => {
   return (
-    <div className="bg-background border border-border rounded-lg p-4">
-      <div className="flex justify-between items-start mb-2">
+    <div className="bg-card border border-border rounded-xl p-6">
+      <div className="flex justify-between items-start">
         <div>
-          <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-              {review.username.charAt(0)}
-            </div>
-            <div className="ml-3">
-              <h4 className="font-medium text-card-foreground">{review.username}</h4>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="h-3 w-3 mr-1" />
-                <span>{formatDate(review.date)}</span>
-              </div>
-            </div>
-          </div>
+          <p className="text-muted-foreground text-sm">{title}</p>
+          <p className="text-3xl font-bold text-card-foreground mt-2">{value}</p>
+          {trend && <p className="text-xs text-green-500 mt-1">{trend}</p>}
         </div>
-        <div className="flex">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-              key={star}
-              className={`h-4 w-4 ${star <= review.rating ? "text-yellow-400 fill-current" : "text-gray-300"}`}
-            />
-          ))}
-        </div>
+        <div className="bg-primary/10 p-3 rounded-lg">{icon}</div>
       </div>
-
-      <p className="text-card-foreground my-3">{review.comment}</p>
-
-      <div className="flex items-center text-sm text-muted-foreground">
-        <span>Review for:</span>
-        <span className="font-medium ml-1 text-primary">{review.listingName}</span>
-        <span className="mx-1">•</span>
-        <span>{review.businessType}</span>
-      </div>
-
-      {review.hasResponse && (
-        <div className="mt-3 pl-4 border-l-2 border-primary/30">
-          <p className="text-sm font-medium text-card-foreground">Business Response:</p>
-          <p className="text-sm text-muted-foreground mt-1">{review.response}</p>
-        </div>
-      )}
-
-      <div className="mt-3 flex space-x-2">
-        {!review.hasResponse && (
-          <Button variant="outline" size="sm" className="text-xs" onClick={onReply}>
-            Reply
-          </Button>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-          onClick={onDelete}
-        >
-          Delete
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function MetricCard({ title, value, icon, trend }) {
-  return (
-    <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div className="p-2 bg-primary/20 rounded-lg">{icon}</div>
-      </div>
-      <h3 className="text-sm font-medium text-muted-foreground mb-1">{title}</h3>
-      <p className="text-2xl font-bold text-card-foreground mb-1">{value}</p>
-      <p className="text-xs text-muted-foreground">{trend}</p>
     </div>
   )
 }

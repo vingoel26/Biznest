@@ -2,41 +2,142 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { User, Mail, Phone, MapPin, Camera, Edit, Save, Lock, Bell, Shield, LogOut, ChevronRight } from "lucide-react"
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Camera,
+  Edit,
+  Save,
+  Lock,
+  Bell,
+  Shield,
+  LogOut,
+  ChevronRight,
+  Globe,
+  FileText,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import defaultUserPicture from "/images/defaultUserPicture.png"
+import userService from "../services/userService"
 
 const ProfilePage = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("profile")
   const [isEditing, setIsEditing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [profileData, setProfileData] = useState({
-    username: localStorage.getItem("username") || "User",
-    email: "user@example.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Main Street, City, Country",
-    bio: "I'm a business enthusiast who loves discovering new local gems in my community.",
+    username: "",
+    email: "",
+    displayName: "",
+    bio: "",
+    location: "",
+    website: "",
+    phone: "",
+    profilePicture: null,
+    roles: [],
   })
   const [formData, setFormData] = useState({ ...profileData })
-  const isAdmin = profileData.username === "BIZNEST.CREATOR"
-  if(isAdmin)localStorage.setItem("isAdmin","true")
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
 
-  // Check if user is logged in
+  // Add this state for password update
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+  const [passwordError, setPasswordError] = useState(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(null)
+
+  // Check if user is logged in and fetch profile data
   useEffect(() => {
-    if (!localStorage.getItem("username")) {
+    const username = localStorage.getItem("username")
+    if (!username) {
       navigate("/login")
+      return
     }
+
+    const fetchUserProfile = async () => {
+      try {
+        setIsLoading(true)
+        const userData = await userService.getCurrentUser()
+        setProfileData(userData)
+        setFormData(userData)
+        setIsLoading(false)
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err)
+        setError("Failed to load profile data. Please try again later.")
+        setIsLoading(false)
+      }
+    }
+
+    fetchUserProfile()
   }, [navigate])
+
+  // Check if user is admin
+  const isAdmin = profileData.roles && profileData.roles.some((role) => role === "ROLE_ADMIN")
+
+  useEffect(() => {
+    if (isAdmin) {
+      localStorage.setItem("isAdmin", "true")
+    }
+  }, [isAdmin])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSave = () => {
-    setProfileData({ ...formData })
-    setIsEditing(false)
-    // In a real app, you would save to backend here
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setSelectedFile(file)
+
+      // Create preview URL
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true)
+
+      // First update profile data
+      const updatedProfile = await userService.updateProfile({
+        displayName: formData.displayName,
+        bio: formData.bio,
+        location: formData.location,
+        website: formData.website,
+        phone: formData.phone,
+      })
+
+      // Then upload profile picture if selected
+      if (selectedFile) {
+        try {
+          await userService.uploadProfilePicture(selectedFile)
+          // In a real implementation, this would update the profile picture URL
+        } catch (uploadError) {
+          console.error("Failed to upload profile picture:", uploadError)
+          // Continue with profile update even if picture upload fails
+        }
+      }
+
+      setProfileData(updatedProfile)
+      setIsEditing(false)
+      setIsLoading(false)
+      setError(null)
+    } catch (err) {
+      console.error("Failed to update profile:", err)
+      setError("Failed to update profile. Please try again.")
+      setIsLoading(false)
+    }
   }
 
   const handleLogout = () => {
@@ -46,9 +147,71 @@ const ProfilePage = () => {
     navigate("/login")
   }
 
+  // Add this function to handle password input changes
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target
+    setPasswordData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  // Update this function to use the userService
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault()
+
+    // Reset messages
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    // Validate passwords
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("New passwords don't match")
+      return
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters")
+      return
+    }
+
+    try {
+      setIsLoading(true)
+
+      // Call service to update password
+      await userService.updatePassword(passwordData.currentPassword, passwordData.newPassword)
+
+      // Reset form and show success message
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+      setPasswordSuccess("Password updated successfully")
+      setIsLoading(false)
+    } catch (error) {
+      console.error("Failed to update password:", error)
+      setPasswordError(error.response?.data?.message || "Failed to update password. Please try again.")
+      setIsLoading(false)
+    }
+  }
+
+  // Show loading state
+  if (isLoading && !profileData.username) {
+    return (
+      <div className="bg-background text-foreground min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-lg">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-background text-foreground min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {error && (
+          <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg">{error}</div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar */}
           <div className="lg:col-span-1">
@@ -56,16 +219,27 @@ const ProfilePage = () => {
               <div className="p-6 text-center border-b border-border">
                 <div className="relative inline-block">
                   <img
-                    src={defaultUserPicture || "/placeholder.svg"}
+                    src={previewUrl || profileData.profilePicture || defaultUserPicture}
                     alt="Profile"
-                    className="h-24 w-24 rounded-full border-2 border-primary mx-auto"
+                    className="h-24 w-24 rounded-full border-2 border-primary mx-auto object-cover"
                   />
-                  <button className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-primary-foreground hover:bg-primary/90 transition-colors">
-                    <Camera className="h-4 w-4" />
-                  </button>
+                  {isEditing && (
+                    <label className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer">
+                      <Camera className="h-4 w-4" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                    </label>
+                  )}
                 </div>
-                <h2 className="mt-4 text-xl font-bold text-card-foreground">{profileData.username}</h2>
+                <h2 className="mt-4 text-xl font-bold text-card-foreground">
+                  {profileData.displayName || profileData.username}
+                </h2>
                 <p className="text-muted-foreground text-sm">{isAdmin ? "Administrator" : "User"}</p>
+                {profileData.location && (
+                  <div className="flex items-center justify-center mt-2 text-sm text-muted-foreground">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    <span>{profileData.location}</span>
+                  </div>
+                )}
               </div>
 
               <nav className="p-4">
@@ -150,14 +324,28 @@ const ProfilePage = () => {
                       <Button
                         onClick={() => setIsEditing(true)}
                         className="bg-primary hover:bg-primary/90 flex items-center"
+                        disabled={isLoading}
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Profile
                       </Button>
                     ) : (
-                      <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 flex items-center">
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Changes
+                      <Button
+                        onClick={handleSave}
+                        className="bg-green-600 hover:bg-green-700 flex items-center"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Changes
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>
@@ -169,6 +357,12 @@ const ProfilePage = () => {
                           <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0">Username</div>
                           <div className="text-card-foreground font-medium">{profileData.username}</div>
                         </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center">
+                          <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0">Display Name</div>
+                          <div className="text-card-foreground font-medium">{profileData.displayName || "Not set"}</div>
+                        </div>
+
                         <div className="flex flex-col sm:flex-row sm:items-center">
                           <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0">Email</div>
                           <div className="text-card-foreground font-medium flex items-center">
@@ -176,24 +370,71 @@ const ProfilePage = () => {
                             {profileData.email}
                           </div>
                         </div>
+
                         <div className="flex flex-col sm:flex-row sm:items-center">
                           <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0">Phone</div>
                           <div className="text-card-foreground font-medium flex items-center">
                             <Phone className="h-4 w-4 mr-2 text-primary" />
-                            {profileData.phone}
+                            {profileData.phone || "Not set"}
                           </div>
                         </div>
+
                         <div className="flex flex-col sm:flex-row sm:items-start">
-                          <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Address</div>
+                          <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Location</div>
                           <div className="text-card-foreground font-medium flex items-start">
                             <MapPin className="h-4 w-4 mr-2 text-primary mt-1" />
-                            {profileData.address}
+                            {profileData.location || "Not set"}
                           </div>
                         </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-start">
+                          <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Website</div>
+                          <div className="text-card-foreground font-medium flex items-start">
+                            <Globe className="h-4 w-4 mr-2 text-primary mt-1" />
+                            {profileData.website ? (
+                              <a
+                                href={profileData.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                {profileData.website}
+                              </a>
+                            ) : (
+                              "Not set"
+                            )}
+                          </div>
+                        </div>
+
                         <div className="flex flex-col sm:flex-row sm:items-start">
                           <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Bio</div>
-                          <div className="text-card-foreground">{profileData.bio}</div>
+                          <div className="text-card-foreground flex items-start">
+                            <FileText className="h-4 w-4 mr-2 text-primary mt-1" />
+                            <span>{profileData.bio || "No bio provided"}</span>
+                          </div>
                         </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-start">
+                          <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Account Type</div>
+                          <div className="text-card-foreground">
+                            <span className="px-2 py-1 bg-primary/20 text-primary rounded-md text-sm font-medium">
+                              {isAdmin ? "Administrator" : "Regular User"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {profileData.createdAt && (
+                          <div className="flex flex-col sm:flex-row sm:items-start">
+                            <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Member Since</div>
+                            <div className="text-card-foreground">
+                              {new Date(profileData.createdAt).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -205,11 +446,27 @@ const ProfilePage = () => {
                             type="text"
                             id="username"
                             name="username"
-                            value={formData.username}
+                            value={profileData.username}
+                            disabled
+                            className="bg-background/50 border border-input rounded-lg px-4 py-2 text-foreground/70 focus:outline-none cursor-not-allowed"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Username cannot be changed</p>
+                        </div>
+
+                        <div className="flex flex-col">
+                          <label htmlFor="displayName" className="text-muted-foreground mb-1">
+                            Display Name
+                          </label>
+                          <input
+                            type="text"
+                            id="displayName"
+                            name="displayName"
+                            value={formData.displayName || ""}
                             onChange={handleInputChange}
                             className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                           />
                         </div>
+
                         <div className="flex flex-col">
                           <label htmlFor="email" className="text-muted-foreground mb-1">
                             Email
@@ -218,11 +475,13 @@ const ProfilePage = () => {
                             type="email"
                             id="email"
                             name="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            value={profileData.email}
+                            disabled
+                            className="bg-background/50 border border-input rounded-lg px-4 py-2 text-foreground/70 focus:outline-none cursor-not-allowed"
                           />
+                          <p className="text-xs text-muted-foreground mt-1">Contact admin to change email</p>
                         </div>
+
                         <div className="flex flex-col">
                           <label htmlFor="phone" className="text-muted-foreground mb-1">
                             Phone
@@ -231,24 +490,43 @@ const ProfilePage = () => {
                             type="tel"
                             id="phone"
                             name="phone"
-                            value={formData.phone}
+                            value={formData.phone || ""}
                             onChange={handleInputChange}
                             className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="+1 (555) 123-4567"
                           />
                         </div>
+
                         <div className="flex flex-col">
-                          <label htmlFor="address" className="text-muted-foreground mb-1">
-                            Address
+                          <label htmlFor="location" className="text-muted-foreground mb-1">
+                            Location
                           </label>
                           <input
                             type="text"
-                            id="address"
-                            name="address"
-                            value={formData.address}
+                            id="location"
+                            name="location"
+                            value={formData.location || ""}
                             onChange={handleInputChange}
                             className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="City, Country"
                           />
                         </div>
+
+                        <div className="flex flex-col">
+                          <label htmlFor="website" className="text-muted-foreground mb-1">
+                            Website
+                          </label>
+                          <input
+                            type="url"
+                            id="website"
+                            name="website"
+                            value={formData.website || ""}
+                            onChange={handleInputChange}
+                            className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="https://example.com"
+                          />
+                        </div>
+
                         <div className="flex flex-col">
                           <label htmlFor="bio" className="text-muted-foreground mb-1">
                             Bio
@@ -256,10 +534,11 @@ const ProfilePage = () => {
                           <textarea
                             id="bio"
                             name="bio"
-                            value={formData.bio}
+                            value={formData.bio || ""}
                             onChange={handleInputChange}
                             rows="4"
                             className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="Tell us about yourself..."
                           ></textarea>
                         </div>
                       </div>
@@ -277,7 +556,20 @@ const ProfilePage = () => {
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-lg font-medium text-card-foreground mb-4">Change Password</h3>
-                        <div className="space-y-4">
+
+                        {passwordError && (
+                          <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg">
+                            {passwordError}
+                          </div>
+                        )}
+
+                        {passwordSuccess && (
+                          <div className="mb-4 bg-green-500/10 border border-green-500/50 text-green-500 px-4 py-3 rounded-lg">
+                            {passwordSuccess}
+                          </div>
+                        )}
+
+                        <form onSubmit={handlePasswordUpdate} className="space-y-4">
                           <div className="flex flex-col">
                             <label htmlFor="currentPassword" className="text-muted-foreground mb-1">
                               Current Password
@@ -285,7 +577,11 @@ const ProfilePage = () => {
                             <input
                               type="password"
                               id="currentPassword"
+                              name="currentPassword"
+                              value={passwordData.currentPassword}
+                              onChange={handlePasswordChange}
                               className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              required
                             />
                           </div>
                           <div className="flex flex-col">
@@ -295,7 +591,11 @@ const ProfilePage = () => {
                             <input
                               type="password"
                               id="newPassword"
+                              name="newPassword"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordChange}
                               className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              required
                             />
                           </div>
                           <div className="flex flex-col">
@@ -305,11 +605,24 @@ const ProfilePage = () => {
                             <input
                               type="password"
                               id="confirmPassword"
+                              name="confirmPassword"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordChange}
                               className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              required
                             />
                           </div>
-                          <Button className="bg-primary hover:bg-primary/90 mt-2">Update Password</Button>
-                        </div>
+                          <Button type="submit" className="bg-primary hover:bg-primary/90 mt-2" disabled={isLoading}>
+                            {isLoading ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                                Updating...
+                              </>
+                            ) : (
+                              "Update Password"
+                            )}
+                          </Button>
+                        </form>
                       </div>
 
                       <div className="pt-6 border-t border-border">
@@ -386,8 +699,7 @@ const ProfilePage = () => {
                         <p className="text-muted-foreground mb-4">Manage user accounts and permissions</p>
                         <Button
                           className="bg-primary hover:bg-primary/90 flex items-center"
-                          onClick={() => {
-                           navigate("/dashboard")}}
+                          onClick={() => navigate("/dashboard")}
                         >
                           Go to Dashboard
                           <ChevronRight className="ml-2 h-4 w-4" />
