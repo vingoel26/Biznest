@@ -5,6 +5,7 @@ import com.biznest.backend.dto.MessageResponse;
 import com.biznest.backend.dto.SignUpRequest;
 import com.biznest.backend.dto.JwtResponse;
 import com.biznest.backend.model.User;
+import com.biznest.backend.model.UserEntity;
 import com.biznest.backend.security.jwt.JwtUtils;
 import com.biznest.backend.service.UserDetailsServiceImpl;
 import org.springframework.http.HttpStatus;
@@ -64,16 +65,16 @@ public class AuthController {
         }
 
         // Create user with enhanced profile
-        User user = new User(
+                UserEntity user = new UserEntity(
                 signUpRequest.getUsername(),
                 signUpRequest.getEmail(),
-                encodedPassword,
+                signUpRequest.getPassword(), // password will be encoded in service
                 roles,
-                signUpRequest.getUsername(), // Default displayName to username
-                null, // bio
-                null, // location
-                null, // website
-                "/images/defaultUserPicture.png" // default profile picture
+                signUpRequest.getUsername(), // default displayName
+                null,
+                null,
+                null,
+                "/images/defaultUserPicture.png"
         );
 
         userDetailsService.addUser(user);

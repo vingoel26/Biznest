@@ -2,6 +2,7 @@ package com.biznest.backend.controller;
 
 import com.biznest.backend.dto.MessageResponse;
 import com.biznest.backend.model.User;
+import com.biznest.backend.model.UserEntity;
 import com.biznest.backend.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,7 @@ public class UserController {
         }
         
         String username = principal.getName();
-        User user = userService.getUserByUsername(username);
+        UserEntity user = userService.getUserByUsername(username);
         
         if (user == null) {
             return ResponseEntity.status(404).body(new MessageResponse("User not found."));
@@ -65,7 +66,7 @@ public class UserController {
         String username = principal.getName();
         
         try {
-            User updatedUser = userService.updateUserProfile(username, updates);
+            UserEntity updatedUser = userService.updateUserProfile(username, updates);
             
             // Create a safe user object without password
             Map<String, Object> safeUser = new HashMap<>();
@@ -143,7 +144,7 @@ public class UserController {
     @GetMapping("/{username}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
-        User user = userService.getUserByUsername(username);
+        UserEntity user = userService.getUserByUsername(username);
         
         if (user == null) {
             return ResponseEntity.status(404).body(new MessageResponse("User not found."));
@@ -170,7 +171,7 @@ public class UserController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> updateUserRoles(@PathVariable String username, @RequestBody Set<String> roles) {
         try {
-            User updatedUser = userService.updateUserRoles(username, roles);
+            UserEntity updatedUser = userService.updateUserRoles(username, roles);
             return ResponseEntity.ok(new MessageResponse("Roles updated successfully for user: " + username));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error updating roles: " + e.getMessage()));
