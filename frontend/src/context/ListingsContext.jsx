@@ -7,6 +7,8 @@ import beautyImage from "/images/Beauty.webp"
 import automotiveImage from "/images/automotive.webp"
 import homeServiceImage from "/images/homeService.webp"
 import entertainmentImage from "/images/entertainment.webp"
+import listingService from "../services/listingService"
+import categoryService from "../services/categoryService"
 
 // Create the context
 const ListingsContext = createContext()
@@ -95,53 +97,107 @@ const initialListings = [
 
 // Provider component
 export const ListingsProvider = ({ children }) => {
-  const [listings, setListings] = useState(() => {
-    // Try to load from localStorage first
-    const savedListings = localStorage.getItem("biznest_listings")
-    return savedListings ? JSON.parse(savedListings) : initialListings
-  })
-
+  const [listings, setListings] = useState([])
   const [metrics, setMetrics] = useState({
     total: 0,
     new: 0,
     pending: 0,
-    active: 3456, // Static for demo
+    active: 0,
   })
+  const [page, setPage] = useState(0)
+  const [size, setSize] = useState(10)
+  const [totalPages, setTotalPages] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [categoryStats, setCategoryStats] = useState({})
 
-  // Calculate metrics whenever listings change
+  // Fetch listings from backend
+  const fetchListings = async (page = 0, size = 10) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await listingService.getAllListings(page, size)
+      setListings(data.content)
+      setMetrics((prev) => ({
+        ...prev,
+        total: data.totalElements,
+        active: data.totalElements,
+      }))
+      setPage(data.number)
+      setSize(data.size)
+      setTotalPages(data.totalPages)
+    } catch (err) {
+      setError("Failed to load listings.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch categories from backend
+  const fetchCategories = async () => {
+    try {
+      const data = await categoryService.getAllCategories()
+      setCategories(data)
+    } catch (err) {
+      // Optionally handle error
+    }
+  }
+
+  // Fetch category stats from backend
+  const fetchCategoryStats = async () => {
+    try {
+      const data = await categoryService.getCategoryStats()
+      setCategoryStats(data)
+    } catch (err) {
+      // Optionally handle error
+    }
+  }
+
   useEffect(() => {
-    const pending = listings.filter((l) => l.status === "Pending").length
-    const approved = listings.filter((l) => l.status === "Approved").length
-
-    setMetrics({
-      total: listings.length,
-      new: listings.length > 3 ? listings.length - 3 : 0, // Assuming first 3 are "old"
-      pending,
-      approved,
-      active: 3456, // Static for demo
-    })
-
-    // Save to localStorage
-    localStorage.setItem("biznest_listings", JSON.stringify(listings))
-  }, [listings])
+    fetchListings()
+    fetchCategories()
+    fetchCategoryStats()
+  }, [])
 
   // Add a new listing
-  const addListing = (listing) => {
-    const newListing = {
-      id: Date.now(),
-      ...listing,
-    }
-    setListings((prev) => [...prev, newListing])
+  const addListing = async (listing) => {
+    await listingService.createListing(listing)
+    fetchListings(page, size)
   }
 
   // Update an existing listing
-  const updateListing = (id, updatedData) => {
-    setListings((prev) => prev.map((listing) => (listing.id === id ? { ...listing, ...updatedData } : listing)))
+  const updateListing = async (id, updatedData) => {
+    await listingService.updateListing(id, updatedData)
+    fetchListings(page, size)
   }
 
   // Delete a listing
-  const deleteListing = (id) => {
-    setListings((prev) => prev.filter((listing) => listing.id !== id))
+  const deleteListing = async (id) => {
+    await listingService.deleteListing(id)
+    fetchListings(page, size)
+  }
+
+  // Search and filter listings
+  const searchListings = async (searchParams) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await listingService.searchListings(searchParams)
+      setListings(data.content)
+      setMetrics((prev) => ({
+        ...prev,
+        total: data.totalElements,
+        active: data.totalElements,
+      }))
+      setPage(data.number)
+      setSize(data.size)
+      setTotalPages(data.totalPages)
+    } catch (err) {
+      setError("Failed to search listings.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Get categories with counts
@@ -153,6 +209,27 @@ export const ListingsProvider = ({ children }) => {
     return counts
   }
 
+  // Create a new category
+  const createCategory = async (category) => {
+    await categoryService.createCategory(category)
+    fetchCategories()
+    fetchCategoryStats()
+  }
+
+  // Update a category
+  const updateCategory = async (id, updated) => {
+    await categoryService.updateCategory(id, updated)
+    fetchCategories()
+    fetchCategoryStats()
+  }
+
+  // Delete a category
+  const deleteCategory = async (id) => {
+    await categoryService.deleteCategory(id)
+    fetchCategories()
+    fetchCategoryStats()
+  }
+
   return (
     <ListingsContext.Provider
       value={{
@@ -162,6 +239,23 @@ export const ListingsProvider = ({ children }) => {
         updateListing,
         deleteListing,
         getCategoryCounts,
+        fetchListings,
+        searchListings,
+        page,
+        size,
+        totalPages,
+        loading,
+        error,
+        setPage,
+        setSize,
+        // Category management
+        categories,
+        categoryStats,
+        fetchCategories,
+        fetchCategoryStats,
+        createCategory,
+        updateCategory,
+        deleteCategory,
       }}
     >
       {children}

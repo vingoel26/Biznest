@@ -60,7 +60,7 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts } = useListings()
+  const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, searchListings, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats } = useListings()
   const { reviews, addResponse, deleteReview } = useReviews()
 
   const [view, setView] = useState("dashboard")
@@ -105,6 +105,59 @@ const Dashboard = () => {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false)
   const [reviewListings, setReviewListings] = useState([])
 
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [categoryError, setCategoryError] = useState('');
+
+  // Add debugging for categories
+  useEffect(() => {
+    console.log('Categories from context:', categories);
+    console.log('Category stats from context:', categoryStats);
+  }, [categories, categoryStats]);
+
+  // Restore filteredUsers logic
+  const filteredUsers = users.filter(
+    (user) =>
+      user.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      (user.displayName && user.displayName.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
+  )
+
+  // Restore filteredReviews logic
+  const filteredReviews = reviews.filter((review) => {
+    // Filter by business
+    if (reviewFilter !== "all" && review.listingName !== reviewFilter) {
+      return false
+    }
+    // Filter by rating
+    if (ratingFilter !== "all") {
+      const ratingValue = Number.parseInt(ratingFilter)
+      if (review.rating !== ratingValue) {
+        return false
+      }
+    }
+    // Filter by date
+    if (dateFilter !== "all") {
+      const reviewDate = new Date(review.date)
+      const now = new Date()
+      switch (dateFilter) {
+        case "today":
+          return reviewDate.toDateString() === now.toDateString()
+        case "week":
+          const weekAgo = new Date(now)
+          weekAgo.setDate(now.getDate() - 7)
+          return reviewDate >= weekAgo
+        case "month":
+          const monthAgo = new Date(now)
+          monthAgo.setDate(now.getDate() - 30)
+          return reviewDate >= monthAgo
+        default:
+          return true
+      }
+    }
+    return true
+  })
+
   // Check if user is logged in and is admin
   useEffect(() => {
     let initialIsAdmin = false
@@ -138,6 +191,14 @@ const Dashboard = () => {
     }
   }, [view, isAdmin])
 
+  // Fetch categories when in categories view
+  useEffect(() => {
+    if (view === "categories" && isAdmin) {
+      fetchCategories()
+      fetchCategoryStats()
+    }
+  }, [view, isAdmin, fetchCategories, fetchCategoryStats])
+
   const fetchUsers = async () => {
     try {
       setIsLoadingUsers(true)
@@ -159,25 +220,23 @@ const Dashboard = () => {
     setFormData((prev) => ({ ...prev, [id]: value }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-
     // Prepare complete listing data
     const listingData = {
       ...formData,
-      // Set default values for any missing fields
       address: formData.address || `${formData.location} Address`,
       phone: formData.phone || "+1 (555) 123-4567",
-      hours: formData.hours || "9:00 AM - 5:00 PM",
+      businessHours: formData.hours || "9:00 AM - 5:00 PM",
+      rating: formData.rating || 4.5,
+      imageUrl: formData.image || "/images/restaurant-image.webp",
+      description: formData.desc || "",
     }
-
     if (isEditMode) {
-      updateListing(editId, listingData)
+      await updateListing(editId, listingData)
     } else {
-      addListing(listingData)
+      await addListing(listingData)
     }
-
-    // Reset form
     setFormData({
       name: "",
       category: "",
@@ -202,21 +261,21 @@ const Dashboard = () => {
       category: listing.category,
       location: listing.location,
       status: listing.status,
-      desc: listing.desc || "",
+      desc: listing.description || "",
       rating: listing.rating || 4.5,
       address: listing.address || "",
       phone: listing.phone || "",
-      hours: listing.hours || "",
-      image: listing.image || "/images/restaurant-image.webp",
+      hours: listing.businessHours || "",
+      image: listing.imageUrl || "/images/restaurant-image.webp",
     })
     setIsEditMode(true)
     setEditId(id)
     setIsModalOpen(true)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this listing?")) {
-      deleteListing(id)
+      await deleteListing(id)
     }
   }
 
@@ -316,97 +375,26 @@ const Dashboard = () => {
     }
   }
 
-  const filteredListings = listings.filter(
-    (listing) =>
-      listing.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.location.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
-
-  // Filter users based on search query
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-      (user.displayName && user.displayName.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
-      (user.email && user.email.toLowerCase().includes(userSearchQuery.toLowerCase())),
-  )
-
-  // Filter reviews based on selected filters
-  const filteredReviews = reviews.filter((review) => {
-    // Filter by business
-    if (reviewFilter !== "all" && review.listingName !== reviewFilter) {
-      return false
+  // Search listings from backend
+  useEffect(() => {
+    if (view === "listings") {
+      searchListings({ name: searchQuery, category: searchQuery, location: "", page, size })
     }
-
-    // Filter by rating
-    if (ratingFilter !== "all") {
-      const ratingValue = Number.parseInt(ratingFilter)
-      if (review.rating !== ratingValue) {
-        return false
-      }
-    }
-
-    // Filter by date
-    if (dateFilter !== "all") {
-      const reviewDate = new Date(review.date)
-      const now = new Date()
-
-      switch (dateFilter) {
-        case "today":
-          // Check if the review is from today
-          return reviewDate.toDateString() === now.toDateString()
-        case "week":
-          // Check if the review is from the last 7 days
-          const weekAgo = new Date(now.setDate(now.getDate() - 7))
-          return reviewDate >= weekAgo
-        case "month":
-          // Check if the review is from the last 30 days
-          const monthAgo = new Date(now.setDate(now.getDate() - 30))
-          return reviewDate >= monthAgo
-        default:
-          return true
-      }
-    }
-
-    return true
-  })
-
-  // Admin authentication
-  const handleAdminInputChange = (e) => {
-    const { id, value } = e.target
-    setAdminCredentials((prev) => ({ ...prev, [id]: value }))
-  }
-
-  const handleAdminSubmit = (e) => {
-    e.preventDefault()
-    setAdminError("")
-
-    // Check admin credentials (hardcoded for demo)
-    if (adminCredentials.username === "admin" && adminCredentials.password === "adminpassword") {
-      setIsAdmin(true)
-      localStorage.setItem("isAdmin", "true")
-      setIsAdminModalOpen(false)
-    } else {
-      setAdminError("Invalid admin credentials")
-    }
-  }
-
-  // Get category counts for the categories view and charts
-  const categoryCounts = getCategoryCounts()
-  const categories = Object.keys(categoryCounts)
+    // eslint-disable-next-line
+  }, [searchQuery, view, page, size])
 
   // Prepare data for charts
-  const categoryChartData = categories.map((category) => ({
-    name: category,
-    count: categoryCounts[category],
+  const categoryChartData = Object.keys(categoryStats).map((name) => ({
+    name,
+    count: categoryStats[name],
+  }))
+
+  const pieData = categoryChartData.map((cat) => ({
+    name: cat.name,
+    value: cat.count,
   }))
 
   const COLORS = ["#8b5cf6", "#6366f1", "#ec4899", "#f43f5e", "#10b981", "#14b8a6", "#f59e0b", "#6b7280"]
-
-  const pieData = categories.map((category) => ({
-    name: category,
-    value: categoryCounts[category],
-  }))
 
   // Monthly growth data (mock data for demo)
   const monthlyData = [
@@ -449,6 +437,42 @@ const Dashboard = () => {
       day: "numeric",
     })
   }
+
+  // Add or update category
+  const handleCategorySubmit = async (e) => {
+    e.preventDefault();
+    setCategoryError('');
+    try {
+      if (editingCategoryId) {
+        await updateCategory(editingCategoryId, categoryForm);
+        setEditingCategoryId(null);
+      } else {
+        await createCategory(categoryForm);
+      }
+      setCategoryForm({ name: '', description: '' });
+      fetchCategoryStats();
+    } catch (err) {
+      setCategoryError('Failed to save category.');
+    }
+  };
+
+  // Edit category
+  const handleEditCategory = (cat) => {
+    setEditingCategoryId(cat.id);
+    setCategoryForm({ name: cat.name, description: cat.description || '' });
+  };
+
+  // Delete category
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      try {
+        await deleteCategory(id);
+        fetchCategoryStats();
+      } catch (err) {
+        setCategoryError('Failed to delete category.');
+      }
+    }
+  };
 
   let content
 
@@ -915,156 +939,216 @@ const Dashboard = () => {
                 )}
 
                 {view === "listings" && (
-                  <div className="bg-card border border-border rounded-xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-accent/50">
-                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
-                              Name
-                            </th>
-                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
-                              Category
-                            </th>
-                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
-                              Location
-                            </th>
-                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
-                              Status
-                            </th>
-                            <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
-                              Rating
-                            </th>
-                            <th className="text-right py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredListings.map((listing) => (
-                            <tr key={listing.id} className="border-t border-border hover:bg-accent/50">
-                              <td className="py-3 px-4 text-foreground">{listing.name}</td>
-                              <td className="py-3 px-4 text-foreground">{listing.category}</td>
-                              <td className="py-3 px-4 text-foreground">{listing.location}</td>
-                              <td className="py-3 px-4">
-                                <span
-                                  className={`px-2 py-1 text-xs rounded-full ${
-                                    listing.status === "Approved"
-                                      ? "bg-green-500/20 text-green-500"
-                                      : listing.status === "Pending"
-                                        ? "bg-yellow-500/20 text-yellow-500"
-                                        : "bg-red-500/20 text-red-500"
-                                  }`}
-                                >
-                                  {listing.status}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="flex items-center">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-4 w-4 ${
-                                        i < Math.floor(listing.rating)
-                                          ? "text-yellow-400 fill-yellow-400"
-                                          : "text-gray-300"
-                                      }`}
-                                    />
-                                  ))}
-                                  <span className="ml-2 text-sm text-muted-foreground">{listing.rating}</span>
-                                </div>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <div className="flex justify-end space-x-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => handleEdit(listing.id)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Edit</span>
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500/10"
-                                    onClick={() => handleDelete(listing.id)}
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                    <span className="sr-only">Delete</span>
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                  <div className="space-y-6">
+                    {loading ? (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                        <span className="ml-3 text-muted-foreground">Loading listings...</span>
+                      </div>
+                    ) : error ? (
+                      <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg">
+                        {error}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-card border border-border rounded-xl overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="bg-accent/50">
+                                  <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                    Name
+                                  </th>
+                                  <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                    Category
+                                  </th>
+                                  <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                    Location
+                                  </th>
+                                  <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                    Status
+                                  </th>
+                                  <th className="text-left py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                    Rating
+                                  </th>
+                                  <th className="text-right py-3 px-4 text-muted-foreground font-medium text-xs uppercase">
+                                    Actions
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {listings.map((listing) => (
+                                  <tr key={listing.id} className="border-t border-border hover:bg-accent/50">
+                                    <td className="py-3 px-4 text-foreground">{listing.name}</td>
+                                    <td className="py-3 px-4 text-foreground">{listing.category}</td>
+                                    <td className="py-3 px-4 text-foreground">{listing.location}</td>
+                                    <td className="py-3 px-4">
+                                      <span
+                                        className={`px-2 py-1 text-xs rounded-full ${
+                                          listing.status === "Approved"
+                                            ? "bg-green-500/20 text-green-500"
+                                            : listing.status === "Pending"
+                                              ? "bg-yellow-500/20 text-yellow-500"
+                                              : "bg-red-500/20 text-red-500"
+                                        }`}
+                                      >
+                                        {listing.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      <div className="flex items-center">
+                                        {[...Array(5)].map((_, i) => (
+                                          <Star
+                                            key={i}
+                                            className={`h-4 w-4 ${
+                                              i < Math.floor(listing.rating)
+                                                ? "text-yellow-400 fill-yellow-400"
+                                                : "text-gray-300"
+                                            }`}
+                                          />
+                                        ))}
+                                        <span className="ml-2 text-sm text-muted-foreground">{listing.rating}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-4 text-right">
+                                      <div className="flex justify-end space-x-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 w-8 p-0"
+                                          onClick={() => handleEdit(listing.id)}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                          <span className="sr-only">Edit</span>
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 border-red-500 text-red-500 hover:bg-red-500/10"
+                                          onClick={() => handleDelete(listing.id)}
+                                        >
+                                          <Trash className="h-4 w-4" />
+                                          <span className="sr-only">Delete</span>
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                        {totalPages > 1 && (
+                          <div className="flex justify-center items-center my-4 space-x-2">
+                            <Button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}>
+                              Previous
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                              Page {page + 1} of {totalPages}
+                            </span>
+                            <Button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page === totalPages - 1}>
+                              Next
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
 
                 {view === "categories" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-card border border-border rounded-xl p-6">
-                      <h2 className="text-lg font-semibold text-card-foreground mb-6">Category Distribution</h2>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={categoryChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
-                            <XAxis
-                              dataKey="name"
-                              tick={{ fill: getChartColors().textColor }}
-                              axisLine={{ stroke: getChartColors().gridColor }}
-                            />
-                            <YAxis
-                              tick={{ fill: getChartColors().textColor }}
-                              axisLine={{ stroke: getChartColors().gridColor }}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: getChartColors().tooltipBg,
-                                borderColor: getChartColors().tooltipBorder,
-                                color: getChartColors().tooltipText,
-                              }}
-                            />
-                            <Legend />
-                            <Bar dataKey="count" fill={getChartColors().barColor} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
                     <div className="bg-card border border-border rounded-xl p-6">
                       <h2 className="text-lg font-semibold text-card-foreground mb-6">Categories</h2>
-                      <div className="space-y-4">
-                        {categories.map((category) => (
-                          <div
-                            key={category}
-                            className="flex items-center justify-between p-4 border border-border rounded-lg"
-                          >
+                      <form onSubmit={handleCategorySubmit} className="mb-6 space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Category Name"
+                            value={categoryForm.name}
+                            onChange={e => setCategoryForm(f => ({ ...f, name: e.target.value }))}
+                            className="px-3 py-2 rounded-md border border-input bg-background text-foreground flex-1"
+                            required
+                          />
+                          <input
+                            type="text"
+                            placeholder="Description (optional)"
+                            value={categoryForm.description}
+                            onChange={e => setCategoryForm(f => ({ ...f, description: e.target.value }))}
+                            className="px-3 py-2 rounded-md border border-input bg-background text-foreground flex-1"
+                          />
+                          <Button type="submit" className="min-w-[100px]">
+                            {editingCategoryId ? 'Update' : 'Add'}
+                          </Button>
+                          {editingCategoryId && (
+                            <Button type="button" variant="outline" onClick={() => { setEditingCategoryId(null); setCategoryForm({ name: '', description: '' }); }}>
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                        {categoryError && <div className="text-red-500 text-sm mt-1">{categoryError}</div>}
+                      </form>
+                      <div className="space-y-4 mb-8">
+                        {categories.length === 0 ? (
+                          <div className="text-muted-foreground">No categories found.</div>
+                        ) : categories.map((category) => (
+                          <div key={category.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
                             <div className="flex items-center">
                               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mr-4">
                                 <Store className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <h3 className="font-medium text-card-foreground">{category}</h3>
-                                <p className="text-sm text-muted-foreground">{categoryCounts[category]} listings</p>
+                                <h3 className="font-medium text-card-foreground">{category.name}</h3>
+                                <p className="text-sm text-muted-foreground">{categoryStats[category.name] || 0} listings</p>
+                                {category.description && <p className="text-xs text-muted-foreground mt-1">{category.description}</p>}
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => {
-                                setSearchQuery(category)
-                                handleNav("listings")
-                              }}
-                            >
-                              View Listings
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  setSearchQuery(category.name)
+                                  handleNav("listings")
+                                }}
+                              >
+                                View Listings
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => handleEditCategory(category)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-red-500 border-red-500 hover:bg-red-500/10"
+                                onClick={() => handleDeleteCategory(category.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </div>
                         ))}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-card-foreground mb-6">Category Distribution</h2>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={categoryChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
+                              <XAxis dataKey="name" tick={{ fill: getChartColors().textColor }} axisLine={{ stroke: getChartColors().gridColor }} />
+                              <YAxis tick={{ fill: getChartColors().textColor }} axisLine={{ stroke: getChartColors().gridColor }} />
+                              <Tooltip contentStyle={{ backgroundColor: getChartColors().tooltipBg, borderColor: getChartColors().tooltipBorder, color: getChartColors().tooltipText }} />
+                              <Legend />
+                              <Bar dataKey="count" fill={getChartColors().barColor} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1504,12 +1588,11 @@ const Dashboard = () => {
                         required
                       >
                         <option value="">Select a category</option>
-                        <option value="Restaurant">Restaurant</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Beauty">Beauty</option>
-                        <option value="Automotive">Automotive</option>
-                        <option value="Home Services">Home Services</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
