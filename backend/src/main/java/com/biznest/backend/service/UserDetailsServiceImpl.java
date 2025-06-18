@@ -83,6 +83,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     }
 
     public UserEntity updateUserRoles(String username, Set<String> roles) {
+        // Prevent removing admin from the default creator
+        if ("BIZNEST.CREATOR".equals(username) && (roles == null || !roles.contains("ROLE_ADMIN"))) {
+            throw new IllegalArgumentException("Cannot remove admin role from the default creator user.");
+        }
         UserEntity user = userRepository.findByUsername(username);
         if (user == null) {
             throw new UsernameNotFoundException("User not found: " + username);
@@ -94,6 +98,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     }
 
     public boolean deleteUser(String username) {
+        // Prevent deleting the default creator user
+        if ("BIZNEST.CREATOR".equals(username)) {
+            return false;
+        }
         UserEntity user = userRepository.findByUsername(username);
         if (user == null || user.getRoles().contains("ROLE_ADMIN")) {
             return false;

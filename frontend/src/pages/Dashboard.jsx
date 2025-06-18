@@ -290,14 +290,26 @@ const Dashboard = () => {
     e.preventDefault()
 
     const form = e.target
-    const isAdmin = form.isAdmin.checked
+    const isAdminChecked = form.isAdmin.checked
 
     try {
       // Fix: Send an array of roles instead of an object
-      const roles = isAdmin ? ["ROLE_USER", "ROLE_ADMIN"] : ["ROLE_USER"]
+      const roles = isAdminChecked ? ["ROLE_USER", "ROLE_ADMIN"] : ["ROLE_USER"]
       await userService.updateUserRoles(selectedUser.username, roles)
       setIsRoleModalOpen(false)
       fetchUsers() // Refresh the user list
+
+      // If the updated user is the current user, refetch their profile and update isAdmin
+      const currentUsername = localStorage.getItem("username")
+      if (selectedUser.username === currentUsername) {
+        const updatedUser = await userService.getCurrentUser()
+        const isStillAdmin = updatedUser.roles && updatedUser.roles.includes("ROLE_ADMIN")
+        setIsAdmin(isStillAdmin)
+        if (!isStillAdmin) {
+          localStorage.removeItem("isAdmin")
+          navigate("/home")
+        }
+      }
     } catch (error) {
       console.error(`Failed to update roles for ${selectedUser.username}:`, error)
       setUserError(`Failed to update roles. ${error.response?.data?.message || "Please try again."}`)

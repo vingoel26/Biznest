@@ -5,6 +5,7 @@ import { useNavigate, Link } from "react-router-dom"
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "../services/api"
+import userService from "../services/userService"
 
 const LoginPage = () => {
   const navigate = useNavigate()
@@ -40,8 +41,9 @@ const LoginPage = () => {
         localStorage.setItem("jwtToken", response.data.token)
         localStorage.setItem("username", response.data.username)
 
-        // Check if user is admin and store that info
-        if (response.data.roles && response.data.roles.includes("ROLE_ADMIN")) {
+        // Fetch user profile to get roles
+        const userProfile = await userService.getCurrentUser()
+        if (userProfile.roles && userProfile.roles.includes("ROLE_ADMIN")) {
           localStorage.setItem("isAdmin", "true")
         } else {
           localStorage.removeItem("isAdmin")
