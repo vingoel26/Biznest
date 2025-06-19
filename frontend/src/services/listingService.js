@@ -37,6 +37,12 @@ const listingService = {
     const response = await api.get(`/api/listings/search?${params.toString()}`);
     return response.data;
   },
+
+  // Get all listings by category (not paginated)
+  getListingsByCategory: async (category) => {
+    const response = await api.get(`/api/listings/by-category?category=${encodeURIComponent(category)}`);
+    return response.data;
+  },
 };
 
 export default listingService; 

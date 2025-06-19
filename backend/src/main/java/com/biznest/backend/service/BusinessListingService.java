@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -63,5 +64,10 @@ public class BusinessListingService {
     public Page<BusinessListing> searchAndFilter(String name, String category, String location, Pageable pageable) {
         return businessListingRepository.findByNameContainingIgnoreCaseAndCategoryContainingIgnoreCaseAndLocationContainingIgnoreCase(
             name, category, location, pageable);
+    }
+
+    // Get all listings by category (not paginated)
+    public List<BusinessListing> getAllByCategory(String category) {
+        return businessListingRepository.findByCategoryIgnoreCase(category);
     }
 } 

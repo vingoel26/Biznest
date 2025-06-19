@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -57,5 +58,10 @@ public class BusinessListingController {
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(businessListingService.searchAndFilter(name, category, location, pageable));
+    }
+
+    @GetMapping("/by-category")
+    public ResponseEntity<List<BusinessListing>> getListingsByCategory(@RequestParam String category) {
+        return ResponseEntity.ok(businessListingService.getAllByCategory(category));
     }
 } 

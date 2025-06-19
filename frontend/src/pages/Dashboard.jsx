@@ -60,7 +60,7 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, searchListings, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats } = useListings()
+  const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, searchListings, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats, fetchListingsByCategory } = useListings()
   const { reviews, addResponse, deleteReview } = useReviews()
 
   const [view, setView] = useState("dashboard")
@@ -108,6 +108,33 @@ const Dashboard = () => {
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [categoryError, setCategoryError] = useState('');
+
+  // Add state for expanded category
+  const [expandedCategoryId, setExpandedCategoryId] = useState(null);
+  // Add state for listings by category
+  const [categoryListings, setCategoryListings] = useState({});
+  const [categoryLoading, setCategoryLoading] = useState({});
+
+  // Function to handle expand/collapse
+  const handleToggleCategoryListings = async (categoryId, categoryName) => {
+    if (expandedCategoryId === categoryId) {
+      setExpandedCategoryId(null);
+    } else {
+      setExpandedCategoryId(categoryId);
+      // Only fetch if not already loaded
+      if (!categoryListings[categoryId]) {
+        setCategoryLoading((prev) => ({ ...prev, [categoryId]: true }));
+        const listings = await fetchListingsByCategory(categoryName);
+        setCategoryListings((prev) => ({ ...prev, [categoryId]: listings }));
+        setCategoryLoading((prev) => ({ ...prev, [categoryId]: false }));
+      }
+    }
+  };
+
+  // Function to get listings for a category
+  const getListingsForCategory = (categoryName) => {
+    return listings.filter(listing => listing.category === categoryName);
+  };
 
   // Add debugging for categories
   useEffect(() => {
@@ -1092,46 +1119,79 @@ const Dashboard = () => {
                         {categories.length === 0 ? (
                           <div className="text-muted-foreground">No categories found.</div>
                         ) : categories.map((category) => (
-                          <div key={category.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                            <div className="flex items-center">
-                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mr-4">
-                                <Store className="h-5 w-5 text-primary" />
+                          <div key={category.id} className="flex flex-col">
+                            <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center">
+                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mr-4">
+                                  <Store className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                  <h3 className="font-medium text-card-foreground">{category.name}</h3>
+                                  <p className="text-sm text-muted-foreground">{categoryStats[category.name] || 0} listings</p>
+                                  {category.description && <p className="text-xs text-muted-foreground mt-1">{category.description}</p>}
+                                </div>
                               </div>
-                              <div>
-                                <h3 className="font-medium text-card-foreground">{category.name}</h3>
-                                <p className="text-sm text-muted-foreground">{categoryStats[category.name] || 0} listings</p>
-                                {category.description && <p className="text-xs text-muted-foreground mt-1">{category.description}</p>}
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => handleToggleCategoryListings(category.id, category.name)}
+                                >
+                                  {expandedCategoryId === category.id ? "Hide Listings" : "View Listings"}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => handleEditCategory(category)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs text-red-500 border-red-500 hover:bg-red-500/10"
+                                  onClick={() => handleDeleteCategory(category.id)}
+                                >
+                                  Delete
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => {
-                                  setSearchQuery(category.name)
-                                  handleNav("listings")
-                                }}
-                              >
-                                View Listings
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => handleEditCategory(category)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs text-red-500 border-red-500 hover:bg-red-500/10"
-                                onClick={() => handleDeleteCategory(category.id)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
+                            {/* Dropdown for listings */}
+                            {expandedCategoryId === category.id && (
+                              <div className="w-full mt-2 mb-4 bg-accent/30 rounded-lg p-4 border border-border">
+                                {categoryLoading[category.id] ? (
+                                  <div className="flex items-center justify-center p-4">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
+                                    <span className="ml-3 text-muted-foreground">Loading listings...</span>
+                                  </div>
+                                ) : (categoryListings[category.id] && categoryListings[category.id].length === 0 ? (
+                                  <div className="text-muted-foreground">No listings in this category.</div>
+                                ) : (
+                                  <table className="w-full">
+                                    <thead>
+                                      <tr>
+                                        <th className="text-left py-2 px-2 text-xs text-muted-foreground">Name</th>
+                                        <th className="text-left py-2 px-2 text-xs text-muted-foreground">Location</th>
+                                        <th className="text-left py-2 px-2 text-xs text-muted-foreground">Status</th>
+                                        <th className="text-left py-2 px-2 text-xs text-muted-foreground">Rating</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {categoryListings[category.id] && categoryListings[category.id].map(listing => (
+                                        <tr key={listing.id}>
+                                          <td className="py-2 px-2">{listing.name}</td>
+                                          <td className="py-2 px-2">{listing.location}</td>
+                                          <td className="py-2 px-2">{listing.status}</td>
+                                          <td className="py-2 px-2">{listing.rating}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

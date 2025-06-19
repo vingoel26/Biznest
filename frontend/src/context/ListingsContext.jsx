@@ -154,6 +154,16 @@ export const ListingsProvider = ({ children }) => {
     }
   }
 
+  // Fetch listings by category (not paginated)
+  const fetchListingsByCategory = async (category) => {
+    try {
+      return await listingService.getListingsByCategory(category);
+    } catch (err) {
+      // Optionally handle error
+      return [];
+    }
+  };
+
   useEffect(() => {
     fetchListings()
     fetchCategories()
@@ -256,6 +266,8 @@ export const ListingsProvider = ({ children }) => {
         createCategory,
         updateCategory,
         deleteCategory,
+        // Listings by category
+        fetchListingsByCategory,
       }}
     >
       {children}
