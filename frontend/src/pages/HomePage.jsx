@@ -71,6 +71,8 @@ const HomePage = () => {
 
   // Multi-category filter
   const filteredListings = listings.filter((listing) => {
+    // Only show approved listings
+    if (listing.status !== 'Approved') return false;
     // Support both string and object for listing.category
     const listingCat = typeof listing.category === 'string' ? listing.category : (listing.category && listing.category.name);
     const matchesCategory =
@@ -306,18 +308,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Recent Activity Section */}
-      <section className="py-8 px-4 sm:px-6 lg:px-8 bg-muted">
-        <div className="container mx-auto">
-          <h2 className="text-2xl font-bold mb-6 text-foreground">Recent Activity</h2>
-
-          <div className="bg-card border border-border rounded-xl p-6">
-            <p className="text-center text-muted-foreground">
-              Your recent activity will appear here as you interact with businesses.
-            </p>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Details Modal */}
       {isDetailsModalOpen && selectedListing && (

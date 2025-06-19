@@ -62,8 +62,8 @@ const ContactPage = () => {
               icon={<Phone className="h-8 w-8 text-primary" />}
               title="Call Us"
               description="Speak directly with our support team"
-              contact="+1 (555) 123-4567"
-              href="tel:+15551234567"
+              contact="+91 93362 50306"
+              href="tel:+919336250306"
             />
 
             <ContactCard
@@ -78,7 +78,7 @@ const ContactPage = () => {
               icon={<MapPin className="h-8 w-8 text-primary" />}
               title="Visit Us"
               description="Come to our headquarters"
-              contact="123 Business Ave, Tech Park"
+              contact="IIIT Lucknow"
               href="#"
             />
           </div>
@@ -202,19 +202,6 @@ const ContactPage = () => {
         </div>
       </section>
 
-      {/* Map Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
-          <h2 className="text-2xl font-semibold text-center mb-8 text-foreground">Find Us</h2>
-          <div className="max-w-5xl mx-auto h-96 bg-card rounded-xl overflow-hidden border border-border flex items-center justify-center">
-            <div className="text-center px-4">
-              <MapPin className="h-12 w-12 text-primary mx-auto mb-4" />
-              <p className="text-xl font-medium text-card-foreground">Interactive Map Coming Soon</p>
-              <p className="text-muted-foreground mt-2">We're located at 123 Business Ave, Tech Park</p>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }
