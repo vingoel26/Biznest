@@ -41,13 +41,23 @@ public class DemoApplication {
 				);
 				userDetailsService.addUser(admin);
 			}
+			// Fetch the managed admin entity for use as owner
+			UserEntity admin = userDetailsService.getUserByUsername(adminUsername);
 
 			// Seed initial business listings if none exist
 			if (businessListingRepository.count() == 0) {
+				// Fetch categories
+				Category restaurants = categoryRepository.findByName("Restaurants");
+				Category shopping = categoryRepository.findByName("Shopping");
+				Category education = categoryRepository.findByName("Education");
+				Category accommodation = categoryRepository.findByName("Accommodation");
+				Category health = categoryRepository.findByName("Health & Beauty");
+				Category automotive = categoryRepository.findByName("Automotive");
 				businessListingRepository.saveAll(Arrays.asList(
 					BusinessListing.builder()
 						.name("Tunday Kebabi")
-						.category("Restaurants")
+						.category(restaurants)
+						.owner(admin)
 						.location("Downtown")
 						.status("Approved")
 						.description("Best Kebabs in town!")
@@ -59,7 +69,8 @@ public class DemoApplication {
 						.build(),
 					BusinessListing.builder()
 						.name("Pheonix Palassio")
-						.category("Shopping")
+						.category(shopping)
+						.owner(admin)
 						.location("Midtown")
 						.status("Approved")
 						.description("Your one-stop shop for everything!")
@@ -71,7 +82,8 @@ public class DemoApplication {
 						.build(),
 					BusinessListing.builder()
 						.name("IIIT Lucknow")
-						.category("Education")
+						.category(education)
+						.owner(admin)
 						.location("Eastside")
 						.status("Approved")
 						.description("The world is at IIIT Lucknow, where are you?")
@@ -83,7 +95,8 @@ public class DemoApplication {
 						.build(),
 					BusinessListing.builder()
 						.name("Saroj Hostel")
-						.category("Accommodation")
+						.category(accommodation)
+						.owner(admin)
 						.location("Campus Area")
 						.status("Pending")
 						.description("Best hostel in the whole town!")
@@ -95,7 +108,8 @@ public class DemoApplication {
 						.build(),
 					BusinessListing.builder()
 						.name("Luxury Spa & Wellness")
-						.category("Health & Beauty")
+						.category(health)
+						.owner(admin)
 						.location("Uptown")
 						.status("Approved")
 						.description("Relax and rejuvenate with our premium services")
@@ -107,7 +121,8 @@ public class DemoApplication {
 						.build(),
 					BusinessListing.builder()
 						.name("Premium Auto Repair")
-						.category("Automotive")
+						.category(automotive)
+						.owner(admin)
 						.location("Industrial Zone")
 						.status("Pending")
 						.description("Expert mechanics for all your vehicle needs")

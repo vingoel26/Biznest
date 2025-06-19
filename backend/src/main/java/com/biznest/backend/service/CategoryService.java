@@ -47,7 +47,7 @@ public class CategoryService {
     public Map<String, Long> getCategoryStats() {
         return businessListingRepository.findAll().stream()
             .collect(Collectors.groupingBy(
-                listing -> listing.getCategory(),
+                listing -> listing.getCategory() != null ? listing.getCategory().getName() : "Uncategorized",
                 Collectors.counting()
             ));
     }

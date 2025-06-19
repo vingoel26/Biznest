@@ -118,15 +118,15 @@ export const ListingsProvider = ({ children }) => {
     setError(null)
     try {
       const data = await listingService.getAllListings(page, size)
-      setListings(data.content)
+      setListings(Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : [])
       setMetrics((prev) => ({
         ...prev,
-        total: data.totalElements,
-        active: data.totalElements,
+        total: data.totalElements || (Array.isArray(data) ? data.length : 0),
+        active: data.totalElements || (Array.isArray(data) ? data.length : 0),
       }))
-      setPage(data.number)
-      setSize(data.size)
-      setTotalPages(data.totalPages)
+      setPage(data.number || 0)
+      setSize(data.size || 10)
+      setTotalPages(data.totalPages || 1)
     } catch (err) {
       setError("Failed to load listings.")
     } finally {
@@ -155,9 +155,9 @@ export const ListingsProvider = ({ children }) => {
   }
 
   // Fetch listings by category (not paginated)
-  const fetchListingsByCategory = async (category) => {
+  const fetchListingsByCategory = async (categoryId) => {
     try {
-      return await listingService.getListingsByCategory(category);
+      return await listingService.getListingsByCategory(categoryId);
     } catch (err) {
       // Optionally handle error
       return [];
@@ -172,13 +172,25 @@ export const ListingsProvider = ({ children }) => {
 
   // Add a new listing
   const addListing = async (listing) => {
-    await listingService.createListing(listing)
+    // Ensure category and owner are numbers (IDs)
+    const listingToSend = {
+      ...listing,
+      category: listing.category ? parseInt(listing.category) : undefined,
+      owner: listing.owner ? parseInt(listing.owner) : undefined,
+    };
+    await listingService.createListing(listingToSend)
     fetchListings(page, size)
   }
 
   // Update an existing listing
   const updateListing = async (id, updatedData) => {
-    await listingService.updateListing(id, updatedData)
+    // Ensure category and owner are numbers (IDs)
+    const updatedToSend = {
+      ...updatedData,
+      category: updatedData.category ? parseInt(updatedData.category) : undefined,
+      owner: updatedData.owner ? parseInt(updatedData.owner) : undefined,
+    };
+    await listingService.updateListing(id, updatedToSend)
     fetchListings(page, size)
   }
 
@@ -188,33 +200,13 @@ export const ListingsProvider = ({ children }) => {
     fetchListings(page, size)
   }
 
-  // Search and filter listings
-  const searchListings = async (searchParams) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await listingService.searchListings(searchParams)
-      setListings(data.content)
-      setMetrics((prev) => ({
-        ...prev,
-        total: data.totalElements,
-        active: data.totalElements,
-      }))
-      setPage(data.number)
-      setSize(data.size)
-      setTotalPages(data.totalPages)
-    } catch (err) {
-      setError("Failed to search listings.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Get categories with counts
   const getCategoryCounts = () => {
     const counts = {}
     listings.forEach((listing) => {
-      counts[listing.category] = (counts[listing.category] || 0) + 1
+      if (listing.category && listing.category.name) {
+        counts[listing.category.name] = (counts[listing.category.name] || 0) + 1
+      }
     })
     return counts
   }
@@ -250,7 +242,6 @@ export const ListingsProvider = ({ children }) => {
         deleteListing,
         getCategoryCounts,
         fetchListings,
-        searchListings,
         page,
         size,
         totalPages,

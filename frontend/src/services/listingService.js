@@ -3,7 +3,13 @@ import api from "./api";
 const listingService = {
   // Create a new listing
   createListing: async (listing) => {
-    const response = await api.post("/api/listings", listing);
+    // Expect listing.category to be the category ID and listing.owner to be the owner ID
+    const { category, owner, ...rest } = listing;
+    const params = new URLSearchParams();
+    if (category) params.append('categoryId', category);
+    if (owner) params.append('ownerId', owner);
+    console.log("POST /api/listings params:", params.toString(), "body:", rest);
+    const response = await api.post(`/api/listings?${params.toString()}`, rest);
     return response.data;
   },
 
@@ -21,7 +27,11 @@ const listingService = {
 
   // Update a listing
   updateListing: async (id, updated) => {
-    const response = await api.put(`/api/listings/${id}`, updated);
+    const { category, owner, ...rest } = updated;
+    const params = new URLSearchParams();
+    if (category) params.append('categoryId', category);
+    if (owner) params.append('ownerId', owner);
+    const response = await api.put(`/api/listings/${id}?${params.toString()}`, rest);
     return response.data;
   },
 
@@ -39,8 +49,8 @@ const listingService = {
   },
 
   // Get all listings by category (not paginated)
-  getListingsByCategory: async (category) => {
-    const response = await api.get(`/api/listings/by-category?category=${encodeURIComponent(category)}`);
+  getListingsByCategory: async (categoryId) => {
+    const response = await api.get(`/api/listings/by-category?categoryId=${categoryId}`);
     return response.data;
   },
 };

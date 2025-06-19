@@ -42,6 +42,7 @@ public class UserController {
         
         // Create a safe user object without password
         Map<String, Object> safeUser = new HashMap<>();
+        safeUser.put("id", user.getId());
         safeUser.put("username", user.getUsername());
         safeUser.put("email", user.getEmail());
         safeUser.put("displayName", user.getDisplayName());

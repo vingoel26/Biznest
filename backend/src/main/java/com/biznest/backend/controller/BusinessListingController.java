@@ -1,6 +1,8 @@
 package com.biznest.backend.controller;
 
 import com.biznest.backend.model.BusinessListing;
+import com.biznest.backend.model.Category;
+import com.biznest.backend.model.UserEntity;
 import com.biznest.backend.service.BusinessListingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -20,8 +22,8 @@ public class BusinessListingController {
     private BusinessListingService businessListingService;
 
     @PostMapping
-    public ResponseEntity<BusinessListing> createListing(@RequestBody BusinessListing listing) {
-        return ResponseEntity.ok(businessListingService.createListing(listing));
+    public ResponseEntity<BusinessListing> createListing(@RequestBody BusinessListing listing, @RequestParam Long categoryId, @RequestParam Long ownerId) {
+        return ResponseEntity.ok(businessListingService.createListing(listing, categoryId, ownerId));
     }
 
     @GetMapping("/{id}")
@@ -39,8 +41,8 @@ public class BusinessListingController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BusinessListing> updateListing(@PathVariable Long id, @RequestBody BusinessListing updated) {
-        return ResponseEntity.ok(businessListingService.updateListing(id, updated));
+    public ResponseEntity<BusinessListing> updateListing(@PathVariable Long id, @RequestBody BusinessListing updated, @RequestParam Long categoryId, @RequestParam Long ownerId) {
+        return ResponseEntity.ok(businessListingService.updateListing(id, updated, categoryId, ownerId));
     }
 
     @DeleteMapping("/{id}")
@@ -49,19 +51,13 @@ public class BusinessListingController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<Page<BusinessListing>> searchListings(
-            @RequestParam(defaultValue = "") String name,
-            @RequestParam(defaultValue = "") String category,
-            @RequestParam(defaultValue = "") String location,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(businessListingService.searchAndFilter(name, category, location, pageable));
+    @GetMapping("/by-category")
+    public ResponseEntity<List<BusinessListing>> getListingsByCategory(@RequestParam Long categoryId) {
+        return ResponseEntity.ok(businessListingService.getAllByCategory(categoryId));
     }
 
-    @GetMapping("/by-category")
-    public ResponseEntity<List<BusinessListing>> getListingsByCategory(@RequestParam String category) {
-        return ResponseEntity.ok(businessListingService.getAllByCategory(category));
+    @GetMapping("/by-owner")
+    public ResponseEntity<List<BusinessListing>> getListingsByOwner(@RequestParam Long ownerId) {
+        return ResponseEntity.ok(businessListingService.getAllByOwner(ownerId));
     }
 } 

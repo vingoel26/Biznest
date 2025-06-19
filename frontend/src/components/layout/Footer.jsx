@@ -17,7 +17,12 @@ export default function Footer() {
   }, [])
 
   // Get unique categories from listings
-  const categories = [...new Set(listings.map((listing) => listing.category))].slice(0, 5)
+  const categories = [...new Set(listings.map((listing) => {
+    if (!listing.category) return null;
+    if (typeof listing.category === 'string') return listing.category;
+    if (typeof listing.category === 'object' && listing.category.name) return listing.category.name;
+    return null;
+  }))].filter(Boolean).slice(0, 5)
 
   // Handle category click
   const handleCategoryClick = (category) => {
@@ -72,7 +77,7 @@ export default function Footer() {
                     onClick={() => handleCategoryClick(category)}
                     className="text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                   >
-                    {category}
+                    {typeof category === 'string' ? category : (category && category.name) ? category.name : 'Unknown'}
                   </button>
                 </li>
               ))}

@@ -60,7 +60,7 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, searchListings, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats, fetchListingsByCategory } = useListings()
+  const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats, fetchListingsByCategory } = useListings()
   const { reviews, addResponse, deleteReview } = useReviews()
 
   const [view, setView] = useState("dashboard")
@@ -75,6 +75,7 @@ const Dashboard = () => {
     phone: "",
     hours: "",
     image: "/images/restaurant-image.webp", // Default image
+    owner: "" // Add owner field if needed
   })
   const [isEditMode, setIsEditMode] = useState(false)
   const [editId, setEditId] = useState(null)
@@ -116,7 +117,7 @@ const Dashboard = () => {
   const [categoryLoading, setCategoryLoading] = useState({});
 
   // Function to handle expand/collapse
-  const handleToggleCategoryListings = async (categoryId, categoryName) => {
+  const handleToggleCategoryListings = async (categoryId) => {
     if (expandedCategoryId === categoryId) {
       setExpandedCategoryId(null);
     } else {
@@ -124,7 +125,7 @@ const Dashboard = () => {
       // Only fetch if not already loaded
       if (!categoryListings[categoryId]) {
         setCategoryLoading((prev) => ({ ...prev, [categoryId]: true }));
-        const listings = await fetchListingsByCategory(categoryName);
+        const listings = await fetchListingsByCategory(categoryId);
         setCategoryListings((prev) => ({ ...prev, [categoryId]: listings }));
         setCategoryLoading((prev) => ({ ...prev, [categoryId]: false }));
       }
@@ -132,8 +133,8 @@ const Dashboard = () => {
   };
 
   // Function to get listings for a category
-  const getListingsForCategory = (categoryName) => {
-    return listings.filter(listing => listing.category === categoryName);
+  const getListingsForCategory = (categoryId) => {
+    return listings.filter(listing => listing.category && listing.category.id === categoryId);
   };
 
   // Add debugging for categories
@@ -249,7 +250,15 @@ const Dashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    // Prepare complete listing data
+    let userProfile;
+    try {
+      userProfile = await userService.getCurrentUser();
+      console.log("Fetched userProfile:", userProfile);
+    } catch (err) {
+      alert("Could not determine current user. Please log in again.");
+      return;
+    }
+    // Prepare complete listing data, now with owner set
     const listingData = {
       ...formData,
       address: formData.address || `${formData.location} Address`,
@@ -258,7 +267,10 @@ const Dashboard = () => {
       rating: formData.rating || 4.5,
       imageUrl: formData.image || "/images/restaurant-image.webp",
       description: formData.desc || "",
-    }
+      category: formData.category ? parseInt(formData.category) : undefined,
+      owner: userProfile.id // <-- set owner here
+    };
+    console.log("Submitting listingData:", listingData);
     if (isEditMode) {
       await updateListing(editId, listingData)
     } else {
@@ -275,6 +287,7 @@ const Dashboard = () => {
       phone: "",
       hours: "",
       image: "/images/restaurant-image.webp",
+      owner: ""
     })
     setIsEditMode(false)
     setEditId(null)
@@ -285,7 +298,7 @@ const Dashboard = () => {
     const listing = listings.find((l) => l.id === id)
     setFormData({
       name: listing.name,
-      category: listing.category,
+      category: listing.category?.id || "",
       location: listing.location,
       status: listing.status,
       desc: listing.description || "",
@@ -294,6 +307,7 @@ const Dashboard = () => {
       phone: listing.phone || "",
       hours: listing.businessHours || "",
       image: listing.imageUrl || "/images/restaurant-image.webp",
+      owner: listing.owner
     })
     setIsEditMode(true)
     setEditId(id)
@@ -318,6 +332,7 @@ const Dashboard = () => {
       phone: "",
       hours: "",
       image: "/images/restaurant-image.webp",
+      owner: ""
     })
     setIsEditMode(false)
     setIsModalOpen(true)
@@ -401,14 +416,6 @@ const Dashboard = () => {
       setUserError(`Failed to update roles. ${error.response?.data?.message || "Please try again."}`)
     }
   }
-
-  // Search listings from backend
-  useEffect(() => {
-    if (view === "listings") {
-      searchListings({ name: searchQuery, category: searchQuery, location: "", page, size })
-    }
-    // eslint-disable-next-line
-  }, [searchQuery, view, page, size])
 
   // Prepare data for charts
   const categoryChartData = Object.keys(categoryStats).map((name) => ({
@@ -907,7 +914,7 @@ const Dashboard = () => {
                               {listings.slice(0, 5).map((listing) => (
                                 <tr key={listing.id} className="border-b border-border hover:bg-accent/50">
                                   <td className="py-3 px-4 text-foreground">{listing.name}</td>
-                                  <td className="py-3 px-4 text-foreground">{listing.category}</td>
+                                  <td className="py-3 px-4 text-foreground">{listing.category?.name || 'Uncategorized'}</td>
                                   <td className="py-3 px-4 text-foreground">{listing.location}</td>
                                   <td className="py-3 px-4">
                                     <span
@@ -1007,7 +1014,7 @@ const Dashboard = () => {
                                 {listings.map((listing) => (
                                   <tr key={listing.id} className="border-t border-border hover:bg-accent/50">
                                     <td className="py-3 px-4 text-foreground">{listing.name}</td>
-                                    <td className="py-3 px-4 text-foreground">{listing.category}</td>
+                                    <td className="py-3 px-4 text-foreground">{listing.category?.name || 'Uncategorized'}</td>
                                     <td className="py-3 px-4 text-foreground">{listing.location}</td>
                                     <td className="py-3 px-4">
                                       <span
@@ -1136,7 +1143,7 @@ const Dashboard = () => {
                                   variant="outline"
                                   size="sm"
                                   className="text-xs"
-                                  onClick={() => handleToggleCategoryListings(category.id, category.name)}
+                                  onClick={() => handleToggleCategoryListings(category.id)}
                                 >
                                   {expandedCategoryId === category.id ? "Hide Listings" : "View Listings"}
                                 </Button>
@@ -1649,7 +1656,7 @@ const Dashboard = () => {
                       >
                         <option value="">Select a category</option>
                         {categories.map((cat) => (
-                          <option key={cat.id} value={cat.name}>
+                          <option key={cat.id} value={cat.id}>
                             {cat.name}
                           </option>
                         ))}

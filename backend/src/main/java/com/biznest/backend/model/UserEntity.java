@@ -2,6 +2,7 @@ package com.biznest.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -41,6 +42,10 @@ public class UserEntity {
     private String location;
     private String website;
     private String profilePicture;
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private java.util.List<BusinessListing> businessListings = new java.util.ArrayList<>();
 
     // Optional convenience constructor
     public UserEntity(String username, String email, String password, Set<String> roles,
