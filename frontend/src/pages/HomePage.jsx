@@ -9,9 +9,9 @@ import { useReviews } from "../context/ReviewsContext"
 
 const HomePage = () => {
   const navigate = useNavigate()
-  const { listings, metrics } = useListings()
+  const { listings, metrics, categories } = useListings()
   const { reviews, addReview, getReviewsByListing, getAverageRatingByListing } = useReviews()
-  const [selectedCategory, setSelectedCategory] = useState("All")
+  const [selectedCategories, setSelectedCategories] = useState(["All"])
   const [searchQuery, setSearchQuery] = useState("")
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -33,14 +33,14 @@ const HomePage = () => {
     // Check if there's a selected category from the footer
     const savedCategory = localStorage.getItem("selectedCategory")
     if (savedCategory) {
-      setSelectedCategory(savedCategory)
+      setSelectedCategories([savedCategory])
       // Clear after using it
       localStorage.removeItem("selectedCategory")
     }
 
     // Listen for custom event from footer
     const handleCategoryEvent = (event) => {
-      setSelectedCategory(event.detail)
+      setSelectedCategories([event.detail])
     }
 
     window.addEventListener("categorySelected", handleCategoryEvent)
@@ -50,24 +50,51 @@ const HomePage = () => {
     }
   }, [])
 
-  const categories = [
+  // Compose dynamic, sorted categories with icons
+  const categoryIcons = {
+    "Restaurants": "🍔",
+    "Shopping": "🛍️",
+    "Health & Beauty": "💇",
+    "Automotive": "🚗",
+    "Entertainment": "🎬",
+    "Education": "🎓",
+    "Accommodation": "🏨",
+    // Add more mappings as needed
+  };
+  const sortedCategories = [
     { name: "All", icon: "🏠" },
-    { name: "Restaurants", icon: "🍔" },
-    { name: "Shopping", icon: "🛍️" },
-    { name: "Health & Beauty", icon: "💇" },
-    { name: "Automotive", icon: "🚗" },
-    { name: "Entertainment", icon: "🎬" },
-    { name: "Education", icon: "🎓" },
-    { name: "Accommodation", icon: "🏨" },
-  ]
+    ...[...(categories || [])]
+      .filter(cat => cat && cat.name)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(cat => ({ name: cat.name, icon: categoryIcons[cat.name] || "🏷️" }))
+  ];
 
+  // Multi-category filter
   const filteredListings = listings.filter((listing) => {
-    const matchesCategory = selectedCategory === "All" || listing.category === selectedCategory
+    // Support both string and object for listing.category
+    const listingCat = typeof listing.category === 'string' ? listing.category : (listing.category && listing.category.name);
+    const matchesCategory =
+      selectedCategories.includes("All") ||
+      selectedCategories.includes(listingCat);
     const matchesSearch =
       listing.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.desc.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesCategory && matchesSearch
-  })
+      (listing.desc && listing.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
+  });
+
+  // Multi-select handler
+  const handleCategoryToggle = (catName) => {
+    if (catName === "All") {
+      setSelectedCategories(["All"]);
+    } else {
+      setSelectedCategories(prev => {
+        const newSelected = prev.includes(catName)
+          ? prev.filter(c => c !== catName)
+          : [...prev.filter(c => c !== "All"), catName];
+        return newSelected.length === 0 ? ["All"] : newSelected;
+      });
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("username")
@@ -168,15 +195,16 @@ const HomePage = () => {
           <h2 className="text-2xl font-bold mb-6 text-foreground">Categories</h2>
 
           <div className="flex overflow-x-auto pb-4 space-x-4 scrollbar-hide">
-            {categories.map((category, index) => (
+            {sortedCategories.map((category, index) => (
               <button
                 key={index}
-                onClick={() => setSelectedCategory(category.name)}
+                onClick={() => handleCategoryToggle(category.name)}
                 className={`flex flex-col items-center justify-center min-w-[100px] p-4 rounded-xl transition-all ${
-                  selectedCategory === category.name
+                  selectedCategories.includes(category.name)
                     ? "bg-primary text-primary-foreground"
                     : "bg-card hover:bg-accent text-card-foreground hover:text-accent-foreground"
                 }`}
+                style={{ border: selectedCategories.includes(category.name) ? '2px solid #6366f1' : undefined }}
               >
                 <span className="text-2xl mb-2">{category.icon}</span>
                 <span className="text-sm font-medium">{category.name}</span>
@@ -191,7 +219,7 @@ const HomePage = () => {
         <div className="container mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-foreground">
-              {selectedCategory === "All" ? "Featured Listings" : selectedCategory}
+              {selectedCategories.includes("All") ? "Featured Listings" : selectedCategories.join(", ")}
             </h2>
             <Button variant="ghost" className="text-primary hover:text-primary/80">
               View All
@@ -267,7 +295,7 @@ const HomePage = () => {
               <Button
                 className="mt-4 bg-primary hover:bg-primary/90"
                 onClick={() => {
-                  setSelectedCategory("All")
+                  setSelectedCategories(["All"])
                   setSearchQuery("")
                 }}
               >
