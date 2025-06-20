@@ -29,4 +29,12 @@ public class MailService {
         mailMessage.setText("From: " + name + " <" + from + ">\n\n" + message);
         mailSender.send(mailMessage);
     }
+
+    public void sendPasswordResetOTP(String email, String otp) {
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setTo(email);
+        mailMessage.setSubject("Password Reset OTP - BizNest");
+        mailMessage.setText("Your password reset OTP is: " + otp + "\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.");
+        mailSender.send(mailMessage);
+    }
 } 

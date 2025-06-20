@@ -13,6 +13,7 @@ import ThemeSettings from "./pages/ThemeSettings"
 import { ListingsProvider } from "./context/ListingsContext"
 import { ThemeProvider } from "./context/ThemeContext"
 import { useEffect } from "react"
+import ForgotPasswordPage from "./pages/ForgotPasswordPage"
 
 function App() {
   const isLoggedIn = !!localStorage.getItem("username")
@@ -49,6 +50,7 @@ function App() {
           {/* Public routes */}
           <Route path="/" element={<IndexPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
           {/* Protected routes within layout */}
           <Route element={<Layout />}>
