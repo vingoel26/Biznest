@@ -20,11 +20,23 @@ const ContactPage = () => {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    alert("Message sent! We will get back to you soon.")
-    setFormData({ fullName: "", email: "", message: "" })
+    try {
+      const response = await fetch("http://localhost:8080/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, type: activeTab }),
+      })
+      if (response.ok) {
+        alert("Message sent! We will get back to you soon.")
+        setFormData({ fullName: "", email: "", message: "" })
+      } else {
+        alert("Failed to send message. Please try again later.")
+      }
+    } catch (error) {
+      alert("Error sending message.")
+    }
   }
 
   return (
