@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import {
   LayoutDashboard,
   ListChecks,
@@ -23,6 +23,7 @@ import {
   ChevronDown,
   UserPlus,
   Shield,
+  CheckCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -60,6 +61,7 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats, fetchListingsByCategory } = useListings()
   const { reviews, addResponse, deleteReview } = useReviews()
 
@@ -151,6 +153,19 @@ const Dashboard = () => {
       (user.email && user.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
   )
 
+  // Add filtered listings logic for search functionality
+  const filteredListings = listings.filter((listing) => {
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      listing.name.toLowerCase().includes(query) ||
+      (listing.category?.name && listing.category.name.toLowerCase().includes(query)) ||
+      listing.location.toLowerCase().includes(query) ||
+      listing.status.toLowerCase().includes(query)
+    );
+  });
+
   // Restore filteredReviews logic
   const filteredReviews = reviews.filter((review) => {
     // Filter by business
@@ -204,6 +219,15 @@ const Dashboard = () => {
       setIsAdminModalOpen(true)
     }
   }, [navigate])
+
+  // Handle URL query parameters for tab switching
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const tab = searchParams.get('tab')
+    if (tab && ['dashboard', 'listings', 'categories', 'analytics', 'reviews', 'users'].includes(tab)) {
+      setView(tab)
+    }
+  }, [location.search])
 
   // Add this useEffect to populate review listings
   useEffect(() => {
@@ -429,22 +453,6 @@ const Dashboard = () => {
   }))
 
   const COLORS = ["#8b5cf6", "#6366f1", "#ec4899", "#f43f5e", "#10b981", "#14b8a6", "#f59e0b", "#6b7280"]
-
-  // Monthly growth data (mock data for demo)
-  const monthlyData = [
-    { name: "Jan", listings: 12 },
-    { name: "Feb", listings: 19 },
-    { name: "Mar", listings: 25 },
-    { name: "Apr", listings: 32 },
-    { name: "May", listings: 40 },
-    { name: "Jun", listings: 45 },
-    { name: "Jul", listings: 52 },
-    { name: "Aug", listings: 58 },
-    { name: "Sep", listings: 65 },
-    { name: "Oct", listings: 70 },
-    { name: "Nov", listings: 78 },
-    { name: "Dec", listings: metrics.total },
-  ]
 
   const getChartColors = () => {
     const isDark = document.documentElement.classList.contains("dark")
@@ -790,15 +798,15 @@ const Dashboard = () => {
                         trend="+5% from last month"
                       />
                       <MetricCard
-                        title="New Listings"
-                        value={metrics.new}
-                        icon={<Plus className="h-6 w-6 text-green-400" />}
-                        trend="+2 this week"
+                        title="Active Listings"
+                        value={metrics.active}
+                        icon={<CheckCircle className="h-6 w-6 text-green-400" />}
+                        trend="+8% from last month"
                       />
                       <MetricCard
-                        title="Active Users"
-                        value={users.length || metrics.active}
-                        icon={<Users className="h-6 w-6 text-blue-400" />}
+                        title="Pending Reviews"
+                        value={reviews.filter((r) => !r.response).length}
+                        icon={<MessageSquare className="h-6 w-6 text-blue-400" />}
                         trend="+12% from last month"
                       />
                       <MetricCard
@@ -810,76 +818,36 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                      <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
-                        <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-lg font-semibold text-card-foreground">Monthly Growth</h2>
-                          <div className="text-xs text-muted-foreground bg-accent px-2 py-1 rounded-md">
-                            Last 12 months
+                      <div className="lg:col-span-3 bg-card border border-border rounded-xl p-6 flex items-center justify-center min-h-[350px] min-w-0">
+                        <div className="w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl flex flex-col items-center justify-center">
+                          <h2 className="text-lg font-semibold text-card-foreground mb-6 text-center">Category Distribution</h2>
+                          <div className="w-full h-auto flex items-center justify-center">
+                            <ResponsiveContainer width="100%" aspect={1} minHeight={250} maxHeight={350}>
+                              <RPieChart>
+                                <Pie
+                                  data={pieData}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  outerRadius="80%"
+                                  fill="#8884d8"
+                                  dataKey="value"
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                >
+                                  {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: getChartColors().tooltipBg,
+                                    borderColor: getChartColors().tooltipBorder,
+                                    color: getChartColors().tooltipText,
+                                  }}
+                                />
+                              </RPieChart>
+                            </ResponsiveContainer>
                           </div>
-                        </div>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
-                              <XAxis
-                                dataKey="name"
-                                tick={{ fill: getChartColors().textColor }}
-                                axisLine={{ stroke: getChartColors().gridColor }}
-                              />
-                              <YAxis
-                                tick={{ fill: getChartColors().textColor }}
-                                axisLine={{ stroke: getChartColors().gridColor }}
-                              />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: getChartColors().tooltipBg,
-                                  borderColor: getChartColors().tooltipBorder,
-                                  color: getChartColors().tooltipText,
-                                }}
-                              />
-                              <Legend />
-                              <Line
-                                type="monotone"
-                                dataKey="listings"
-                                stroke={getChartColors().lineColor}
-                                strokeWidth={2}
-                                activeDot={{ r: 8 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
-                      <div className="bg-card border border-border rounded-xl p-6">
-                        <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-lg font-semibold text-card-foreground">Category Distribution</h2>
-                        </div>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RPieChart>
-                              <Pie
-                                data={pieData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                              >
-                                {pieData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: getChartColors().tooltipBg,
-                                  borderColor: getChartColors().tooltipBorder,
-                                  color: getChartColors().tooltipText,
-                                }}
-                              />
-                            </RPieChart>
-                          </ResponsiveContainer>
                         </div>
                       </div>
                     </div>
@@ -1011,7 +979,7 @@ const Dashboard = () => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {listings.map((listing) => (
+                                {filteredListings.map((listing) => (
                                   <tr key={listing.id} className="border-t border-border hover:bg-accent/50">
                                     <td className="py-3 px-4 text-foreground">{listing.name}</td>
                                     <td className="py-3 px-4 text-foreground">{listing.category?.name || 'Uncategorized'}</td>
@@ -1249,71 +1217,38 @@ const Dashboard = () => {
                         trend="+0.2 from last month"
                       />
                     </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="bg-card border border-border rounded-xl p-6">
-                        <h2 className="text-lg font-semibold text-card-foreground mb-6">Monthly Growth</h2>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke={getChartColors().gridColor} />
-                              <XAxis
-                                dataKey="name"
-                                tick={{ fill: getChartColors().textColor }}
-                                axisLine={{ stroke: getChartColors().gridColor }}
-                              />
-                              <YAxis
-                                tick={{ fill: getChartColors().textColor }}
-                                axisLine={{ stroke: getChartColors().gridColor }}
-                              />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: getChartColors().tooltipBg,
-                                  borderColor: getChartColors().tooltipBorder,
-                                  color: getChartColors().tooltipText,
-                                }}
-                              />
-                              <Legend />
-                              <Line
-                                type="monotone"
-                                dataKey="listings"
-                                stroke={getChartColors().lineColor}
-                                strokeWidth={2}
-                                activeDot={{ r: 8 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
-                      <div className="bg-card border border-border rounded-xl p-6">
-                        <h2 className="text-lg font-semibold text-card-foreground mb-6">Category Distribution</h2>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RPieChart>
-                              <Pie
-                                data={pieData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                              >
-                                {pieData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: getChartColors().tooltipBg,
-                                  borderColor: getChartColors().tooltipBorder,
-                                  color: getChartColors().tooltipText,
-                                }}
-                              />
-                            </RPieChart>
-                          </ResponsiveContainer>
+                    
+                    <div className="flex justify-center items-center">
+                      <div className="bg-card border border-border rounded-xl p-8 flex items-center justify-center min-h-[500px] w-full max-w-4xl">
+                        <div className="w-full flex flex-col items-center justify-center">
+                          <h2 className="text-xl font-semibold text-card-foreground mb-8 text-center">Category Distribution</h2>
+                          <div className="w-full h-auto flex items-center justify-center">
+                            <ResponsiveContainer width="100%" aspect={1} minHeight={400} maxHeight={500}>
+                              <RPieChart>
+                                <Pie
+                                  data={pieData}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  outerRadius="85%"
+                                  fill="#8884d8"
+                                  dataKey="value"
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                >
+                                  {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: getChartColors().tooltipBg,
+                                    borderColor: getChartColors().tooltipBorder,
+                                    color: getChartColors().tooltipText,
+                                  }}
+                                />
+                              </RPieChart>
+                            </ResponsiveContainer>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2038,7 +1973,7 @@ const Dashboard = () => {
 
 // Metric Card Component
 const MetricCard = ({ title, value, icon, trend }) => {
-  return (
+    return (
     <div className="bg-card border border-border rounded-xl p-6">
       <div className="flex justify-between items-start">
         <div>

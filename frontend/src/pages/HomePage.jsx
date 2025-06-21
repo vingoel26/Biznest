@@ -106,6 +106,7 @@ const HomePage = () => {
   }
 
   const openDetailsModal = (listing) => {
+    console.log('openDetailsModal called with:', listing);
     setSelectedListing(listing)
     // Get reviews for this listing
     const reviews = getReviewsByListing(listing.id)
@@ -262,7 +263,7 @@ const HomePage = () => {
                         </div>
                         <div className="flex items-center">
                           <Clock className="h-5 w-5 text-primary mr-2" />
-                          <span className="text-sm text-muted-foreground">{listing.hours}</span>
+                          <span className="text-sm text-muted-foreground">{listing.businessHours || listing.hours}</span>
                         </div>
                       </div>
 
@@ -312,6 +313,7 @@ const HomePage = () => {
 
       {/* Details Modal */}
       {isDetailsModalOpen && selectedListing && (
+        console.log('Rendering Details Modal', { isDetailsModalOpen, selectedListing }),
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div
             className="bg-card rounded-xl shadow-lg w-full max-w-4xl mx-auto border border-border overflow-hidden my-4 max-h-[90vh] flex flex-col"
@@ -367,7 +369,7 @@ const HomePage = () => {
                     <Clock className="h-5 w-5 text-primary mr-2 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-card-foreground">Hours</p>
-                      <p className="text-muted-foreground">{selectedListing.hours}</p>
+                      <p className="text-muted-foreground">{selectedListing.businessHours || selectedListing.hours}</p>
                     </div>
                   </div>
 
@@ -377,7 +379,11 @@ const HomePage = () => {
                     </div>
                     <div>
                       <p className="font-medium text-card-foreground">Category</p>
-                      <p className="text-muted-foreground">{selectedListing.category}</p>
+                      <p className="text-muted-foreground">{
+                        typeof selectedListing.category === "object"
+                          ? selectedListing.category.name
+                          : selectedListing.category
+                      }</p>
                     </div>
                   </div>
                 </div>

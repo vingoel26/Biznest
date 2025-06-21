@@ -23,7 +23,7 @@ export function ThemeProvider({ children }) {
     setMounted(true)
     // Check for saved theme preference or use system preference
     const savedTheme = localStorage.getItem("theme")
-    const savedColorScheme = localStorage.getItem("colorScheme") || "purple"
+    const savedColorScheme = localStorage.getItem("colorScheme")
 
     if (savedTheme) {
       setTheme(savedTheme)
@@ -33,7 +33,13 @@ export function ThemeProvider({ children }) {
       setTheme("light")
     }
 
-    setColorScheme(savedColorScheme)
+    // Set default color scheme based on theme if none saved
+    if (savedColorScheme) {
+      setColorScheme(savedColorScheme)
+    } else {
+      // Default to purple if no color scheme is saved
+      setColorScheme("purple")
+    }
 
     // Add listener for system theme changes
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")

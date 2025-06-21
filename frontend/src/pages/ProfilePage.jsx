@@ -11,7 +11,6 @@ import {
   Edit,
   Save,
   Lock,
-  Bell,
   Shield,
   LogOut,
   ChevronRight,
@@ -268,19 +267,6 @@ const ProfilePage = () => {
                     >
                       <Lock className="h-5 w-5 mr-3" />
                       <span>Security</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => setActiveTab("notifications")}
-                      className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
-                        activeTab === "notifications"
-                          ? "bg-primary/20 text-primary"
-                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                    >
-                      <Bell className="h-5 w-5 mr-3" />
-                      <span>Notifications</span>
                     </button>
                   </li>
                   {isAdmin && (
@@ -624,64 +610,6 @@ const ProfilePage = () => {
                           </Button>
                         </form>
                       </div>
-
-                      <div className="pt-6 border-t border-border">
-                        <h3 className="text-lg font-medium text-card-foreground mb-4">Two-Factor Authentication</h3>
-                        <p className="text-muted-foreground mb-4">
-                          Add an extra layer of security to your account by enabling two-factor authentication.
-                        </p>
-                        <Button className="bg-primary hover:bg-primary/90">Enable 2FA</Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "notifications" && (
-                <div>
-                  <div className="p-6 border-b border-border">
-                    <h2 className="text-xl font-bold text-card-foreground">Notification Preferences</h2>
-                  </div>
-                  <div className="p-6">
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-card-foreground font-medium">Email Notifications</h3>
-                          <p className="text-muted-foreground text-sm">
-                            Receive email updates about your account activity
-                          </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" defaultChecked />
-                          <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-card-foreground font-medium">New Listing Alerts</h3>
-                          <p className="text-muted-foreground text-sm">Get notified when new businesses are added</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" defaultChecked />
-                          <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-card-foreground font-medium">Marketing Communications</h3>
-                          <p className="text-muted-foreground text-sm">Receive promotional offers and updates</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" />
-                          <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-
-                      <div className="pt-6 border-t border-border">
-                        <Button className="bg-primary hover:bg-primary/90">Save Preferences</Button>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -699,9 +627,9 @@ const ProfilePage = () => {
                         <p className="text-muted-foreground mb-4">Manage user accounts and permissions</p>
                         <Button
                           className="bg-primary hover:bg-primary/90 flex items-center"
-                          onClick={() => navigate("/dashboard")}
+                          onClick={() => navigate("/dashboard?tab=users")}
                         >
-                          Go to Dashboard
+                          Go to User Management
                           <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
@@ -711,21 +639,9 @@ const ProfilePage = () => {
                         <p className="text-muted-foreground mb-4">Review and approve business listings</p>
                         <Button
                           className="bg-primary hover:bg-primary/90 flex items-center"
-                          onClick={() => navigate("/dashboard")}
+                          onClick={() => navigate("/dashboard?tab=listings")}
                         >
-                          View Pending Listings
-                          <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="bg-accent rounded-lg p-4 border border-border">
-                        <h3 className="text-lg font-medium text-card-foreground mb-2">System Settings</h3>
-                        <p className="text-muted-foreground mb-4">Configure system-wide settings and preferences</p>
-                        <Button
-                          className="bg-primary hover:bg-primary/90 flex items-center"
-                          onClick={() => navigate("/dashboard")}
-                        >
-                          System Configuration
+                          Go to Listings
                           <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
