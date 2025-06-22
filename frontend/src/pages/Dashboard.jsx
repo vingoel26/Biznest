@@ -58,6 +58,7 @@ import {
   LineChart,
   Line,
 } from "recharts"
+import dashboardService from "../services/dashboardService"
 
 const Dashboard = () => {
   const navigate = useNavigate()
@@ -117,6 +118,20 @@ const Dashboard = () => {
   // Add state for listings by category
   const [categoryListings, setCategoryListings] = useState({});
   const [categoryLoading, setCategoryLoading] = useState({});
+
+  const [analytics, setAnalytics] = useState({
+    totalListings: 0,
+    activeListings: 0,
+    pendingListings: 0,
+    totalUsers: 0,
+    pendingReviews: 0,
+    averageRating: 0,
+    listingsTrend: "",
+    usersTrend: "",
+    reviewsTrend: "",
+    ratingTrend: ""
+  });
+  const [analyticsError, setAnalyticsError] = useState(null);
 
   // Function to handle expand/collapse
   const handleToggleCategoryListings = async (categoryId) => {
@@ -246,10 +261,45 @@ const Dashboard = () => {
   // Fetch categories when in categories view
   useEffect(() => {
     if (view === "categories" && isAdmin) {
-      fetchCategories()
-      fetchCategoryStats()
+      fetchCategories();
+      fetchCategoryStats();
     }
-  }, [view, isAdmin, fetchCategories, fetchCategoryStats])
+  }, [view, isAdmin]);
+
+  // Add new useEffect to refresh data when view changes
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    // Refresh data based on current view
+    switch (view) {
+      case "dashboard":
+        fetchAnalytics();
+        fetchListings();
+        break;
+      case "listings":
+        fetchListings();
+        fetchCategories(); // For category dropdown in listing form
+        break;
+      case "categories":
+        fetchCategories();
+        fetchCategoryStats();
+        break;
+      case "analytics":
+        fetchAnalytics();
+        fetchListings(); // For category distribution chart
+        fetchCategoryStats();
+        break;
+      case "reviews":
+        // Reviews are fetched through context, but we can refresh listings for review listings dropdown
+        fetchListings();
+        break;
+      case "users":
+        fetchUsers();
+        break;
+      default:
+        break;
+    }
+  }, [view, isAdmin]);
 
   const fetchUsers = async () => {
     try {
@@ -316,6 +366,7 @@ const Dashboard = () => {
     setIsEditMode(false)
     setEditId(null)
     setIsModalOpen(false)
+    fetchAnalytics(); // Refresh analytics
   }
 
   const handleEdit = (id) => {
@@ -341,6 +392,7 @@ const Dashboard = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this listing?")) {
       await deleteListing(id)
+      fetchAnalytics(); // Refresh analytics
     }
   }
 
@@ -376,6 +428,7 @@ const Dashboard = () => {
     e.preventDefault()
     addResponse(responseForm.reviewId, responseForm.text)
     closeResponseModal()
+    fetchAnalytics(); // Refresh analytics
   }
 
   const handleResponseChange = (e) => {
@@ -385,6 +438,7 @@ const Dashboard = () => {
   const handleDeleteReview = (reviewId) => {
     if (window.confirm("Are you sure you want to delete this review?")) {
       deleteReview(reviewId)
+      fetchAnalytics(); // Refresh analytics
     }
   }
 
@@ -404,6 +458,7 @@ const Dashboard = () => {
       try {
         await userService.deleteUser(username)
         fetchUsers() // Refresh the user list
+        fetchAnalytics(); // Refresh analytics
       } catch (error) {
         console.error(`Failed to delete user ${username}:`, error)
         setUserError(`Failed to delete user ${username}. ${error.response?.data?.message || "Please try again."}`)
@@ -515,6 +570,51 @@ const Dashboard = () => {
       }
     }
   };
+
+  // Fetch dashboard analytics
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsError(null); // Reset error state
+      const data = await dashboardService.getDashboardAnalytics();
+      setAnalytics(data);
+    } catch (error) {
+      console.error("Failed to fetch dashboard analytics:", error);
+      setAnalyticsError("Failed to load dashboard analytics. Please try again later.");
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAnalytics();
+    }
+  }, [isAdmin]);
+
+  // Admin authentication handlers
+  const handleAdminInputChange = (e) => {
+    const { id, value } = e.target
+    setAdminCredentials(prev => ({ ...prev, [id]: value }))
+  }
+
+  const handleAdminSubmit = async (e) => {
+    e.preventDefault()
+    setAdminError("")
+    
+    try {
+      // For demo purposes, check against hardcoded credentials
+      if (adminCredentials.username === "BIZNEST.CREATOR" && adminCredentials.password === "password123") {
+        setIsAdmin(true)
+        localStorage.setItem("isAdmin", "true")
+        setIsAdminModalOpen(false)
+        // Refresh data after successful authentication
+        fetchAnalytics()
+        fetchListings()
+      } else {
+        setAdminError("Invalid admin credentials. Please try again.")
+      }
+    } catch (error) {
+      setAdminError("Authentication failed. Please try again.")
+    }
+  }
 
   let content
 
@@ -790,30 +890,33 @@ const Dashboard = () => {
 
                 {view === "dashboard" && (
                   <>
+                    {analyticsError && (
+                      <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg mb-6">
+                        {analyticsError}
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                       <MetricCard
                         title="Total Listings"
-                        value={metrics.total}
+                        value={analytics.totalListings}
                         icon={<Store className="h-6 w-6 text-purple-400" />}
-                        trend="+5% from last month"
                       />
                       <MetricCard
                         title="Active Listings"
-                        value={metrics.active}
+                        value={analytics.activeListings}
                         icon={<CheckCircle className="h-6 w-6 text-green-400" />}
-                        trend="+8% from last month"
                       />
                       <MetricCard
-                        title="Pending Reviews"
-                        value={reviews.filter((r) => !r.response).length}
-                        icon={<MessageSquare className="h-6 w-6 text-blue-400" />}
-                        trend="+12% from last month"
+                        title="Pending Listings"
+                        value={analytics.pendingListings}
+                        icon={<AlertTriangle className="h-6 w-6 text-yellow-400"/>}
+                        
                       />
                       <MetricCard
                         title="Average Rating"
-                        value={metrics.rating}
+                        value={(analytics.averageRating || 0).toFixed(1)}
                         icon={<Star className="h-6 w-6 text-yellow-400" />}
-                        trend="+0.2 from last month"
+                        
                       />
                     </div>
 
@@ -1194,27 +1297,27 @@ const Dashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <MetricCard
                         title="Total Listings"
-                        value={metrics.total}
+                        value={analytics.totalListings}
                         icon={<Store className="h-6 w-6 text-purple-400" />}
-                        trend="+5% from last month"
+                        
                       />
                       <MetricCard
                         title="Total Users"
-                        value={users.length || metrics.active}
+                        value={analytics.totalUsers}
                         icon={<Users className="h-6 w-6 text-blue-400" />}
-                        trend="+12% from last month"
+                        
                       />
                       <MetricCard
                         title="Total Reviews"
                         value={reviews.length}
                         icon={<MessageSquare className="h-6 w-6 text-green-400" />}
-                        trend="+8% from last month"
+                        
                       />
                       <MetricCard
                         title="Average Rating"
-                        value={metrics.rating}
+                        value={(analytics.averageRating || 0).toFixed(1)}
                         icon={<Star className="h-6 w-6 text-yellow-400" />}
-                        trend="+0.2 from last month"
+                        
                       />
                     </div>
                     

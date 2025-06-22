@@ -51,12 +51,10 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/hello").permitAll()
+                .requestMatchers("/api/auth/**", "/api/hello/**", "/api/contact/**", "/api/password/**", "/error").permitAll()
+                .requestMatchers("/api/categories/**").permitAll()
                 .requestMatchers("/api/listings/**").permitAll()
-                .requestMatchers("/api/contact/**").permitAll()
-                .requestMatchers("/api/password/**").permitAll()
-                .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/dashboard/analytics").authenticated()
                 .anyRequest().authenticated()
             );
 

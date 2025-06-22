@@ -224,9 +224,6 @@ const HomePage = () => {
             <h2 className="text-2xl font-bold text-foreground">
               {selectedCategories.includes("All") ? "Featured Listings" : selectedCategories.join(", ")}
             </h2>
-            <Button variant="ghost" className="text-primary hover:text-primary/80">
-              View All
-            </Button>
           </div>
 
           {filteredListings.length > 0 ? (

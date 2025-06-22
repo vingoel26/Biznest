@@ -16,4 +16,5 @@ public interface BusinessListingRepository extends JpaRepository<BusinessListing
     List<BusinessListing> findByCategory(Category category);
     Page<BusinessListing> findByOwner(UserEntity owner, Pageable pageable);
     List<BusinessListing> findByOwner(UserEntity owner);
+    long countByStatus(String status);
 } 
