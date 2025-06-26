@@ -10,36 +10,36 @@ const AboutPage = () => {
     {
       title: "Frontend Development",
       description: "Creating responsive and intuitive user interfaces with modern web technologies.",
-      icon: "💻",
+      icon: "",
     },
     {
       title: "UI/UX Design",
       description: "Crafting user-centered designs with a focus on accessibility and modern design trends.",
-      icon: "🎨",
+      icon: "",
     },
     {
       title: "Responsive Design",
       description: "Building websites that work flawlessly across all devices and screen sizes.",
-      icon: "📱",
+      icon: "",
     },
     {
       title: "Web Performance",
       description: "Optimizing websites for speed and performance while maintaining visual appeal.",
-      icon: "⚡",
+      icon: "",
     },
   ]
 
   const team = [
-    { name: "Vinayak Goel", desc: "Made Login and Sign-Up page", img: "/images/vinayak.jpg" },
-    { name: "Anjali Pai", desc: "Made index page", img: "/images/anjali.jpg" },
-    { name: "Vaidik Saxena", desc: "Made About Us Page", img: "/images/vaidik.jpg" },
-    { name: "Mohd. Taha Rafi", desc: "Made About Us page", img: "/images/taha.jpg" },
-    { name: "Divyanshu Singh", desc: "Made Home page", img: "/images/divyanshu.jpg" },
-    { name: "Khushi Arya", desc: "Made Index page", img: "/images/khushi.jpg" },
-    { name: "Diksha Narayan", desc: "Made Contact-Us page", img: "/images/diksha.jpg" },
-    { name: "Piyush Khattar", desc: "Made Sign-Up page", img: "/images/piyush.jpg" },
-    { name: "Samay Toradmal", desc: "Home page, Design of all pages", img: "/images/samay.jpg" },
-    { name: "Aditya Chandak", desc: "Made Contact-Us page", img: "/images/aditya.jpg" },
+    { name: "Vinayak Goel", desc: "", img: "/images/vinayak.jpg" },
+    { name: "Anjali Pai", desc: "", img: "/images/anjali.jpg" },
+    { name: "Vaidik Saxena", desc: "", img: "/images/vaidik.jpg" },
+    { name: "Mohd. Taha Rafi", desc: "", img: "/images/taha.jpg" },
+    { name: "Divyanshu Singh", desc: "", img: "/images/divyanshu.jpg" },
+    { name: "Khushi Arya", desc: "", img: "/images/khushi.jpg" },
+    { name: "Diksha Narayan", desc: "", img: "/images/diksha.jpg" },
+    { name: "Piyush Khattar", desc: "", img: "/images/piyush.jpg" },
+    { name: "Samay Toradmal", desc: "", img: "/images/samay.jpg" },
+    { name: "Aditya Chandak", desc: "", img: "/images/aditya.jpg" },
   ]
 
   const container = {

@@ -1061,7 +1061,7 @@ const Dashboard = () => {
                             <div key={review.id} className="border border-border rounded-lg p-4">
                               <div className="flex justify-between items-start mb-2">
                                 <div>
-                                  <h3 className="font-medium text-card-foreground">{review.userName}</h3>
+                                  <h3 className="font-medium text-card-foreground">{review.username}</h3>
                                   <p className="text-sm text-muted-foreground">{review.listingName}</p>
                                 </div>
                                 <div className="flex items-center">
@@ -1531,7 +1531,7 @@ const Dashboard = () => {
                               <div className="flex justify-between items-start mb-4">
                                 <div>
                                   <div className="flex items-center mb-1">
-                                    <h3 className="font-medium text-card-foreground">{review.userName}</h3>
+                                    <h3 className="font-medium text-card-foreground">{review.username}</h3>
                                     <span className="mx-2 text-muted-foreground">•</span>
                                     <p className="text-sm text-muted-foreground">{formatDate(review.date)}</p>
                                   </div>
@@ -1938,7 +1938,7 @@ const Dashboard = () => {
         {/* View User Modal */}
         {isUserModalOpen && selectedUser && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4">
+            <div className="bg-card rounded-xl shadow-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-border flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-card-foreground">User Details</h2>
                 <button

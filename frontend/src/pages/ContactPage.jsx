@@ -82,8 +82,8 @@ const ContactPage = () => {
               icon={<Mail className="h-8 w-8 text-primary" />}
               title="Email Us"
               description="Send us your questions or feedback"
-              contact="contact@biznest.com"
-              href="mailto:contact@biznest.com"
+              contact="contact.biznest@gmail.com"
+              href="mailto:contact.biznest@gmail.com"
             />
 
             <ContactCard

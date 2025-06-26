@@ -56,6 +56,7 @@ export default function ListingDetailsPage() {
   const { getReviewsByListing, addReview, getAverageRatingByListing } = useReviews()
   const reviews = getReviewsByListing(Number(id))
   const avgRating = getAverageRatingByListing(Number(id))
+  const username = localStorage.getItem("username") || "Anonymous"
 
   useEffect(() => {
     let isMounted = true
@@ -66,16 +67,12 @@ export default function ListingDetailsPage() {
         const data = await listingService.getListing(id)
         if (!isMounted) return
         setListing(data)
-        // Try to fetch blob image
-        if (data.hasImageBlob) {
-          try {
-            const blob = await listingService.getListingImage(id)
-            if (!isMounted) return
-            setImageUrl(URL.createObjectURL(blob))
-          } catch {
-            setImageUrl(data.imageUrl || null)
-          }
-        } else {
+        // Always try to fetch blob image first
+        try {
+          const blob = await listingService.getListingImage(id)
+          if (!isMounted) return
+          setImageUrl(URL.createObjectURL(blob))
+        } catch {
           setImageUrl(data.imageUrl || null)
         }
       } catch (err) {
@@ -104,7 +101,7 @@ export default function ListingDetailsPage() {
       listingId: Number(id),
       listingName: listing?.name || "",
       businessType: listing?.category || "",
-      username: "Anonymous", // Replace with actual user if available
+      username: username,
       rating: reviewForm.rating,
       comment: reviewForm.comment,
     })
@@ -163,7 +160,7 @@ export default function ListingDetailsPage() {
             <div>
               <h1 className="text-4xl font-bold text-foreground mb-2">{listing.name}</h1>
               <div className="flex items-center space-x-4">
-                {renderStars(avgRating || listing.rating || 0)}
+                {renderStars(avgRating || listing.rating || 4.5)}
                 <Badge variant="secondary" className="flex items-center space-x-1">
                   <Building2 className="h-3 w-3" />
                   <span>{typeof listing.category === 'object' && listing.category !== null ? (listing.category.name || JSON.stringify(listing.category)) : (listing.category || '-')}</span>
@@ -184,7 +181,9 @@ export default function ListingDetailsPage() {
                   src={imageUrl || "/placeholder.svg"}
                   alt={listing.name}
                   className="w-full h-64 md:h-80 object-cover"
+                  onError={e => { e.target.onerror = null; e.target.src = "/placeholder.svg"; }}
                 />
+                
               </Card>
             )}
 
@@ -226,7 +225,7 @@ export default function ListingDetailsPage() {
                         <div className="flex items-start justify-between">
                           <div className="flex items-center space-x-3">
                             <Avatar>
-                              <AvatarFallback className="bg-primary/10 text-primary">
+                            <AvatarFallback className="bg-primary/10 text-primary">
                                 {review.username.charAt(0)}
                               </AvatarFallback>
                             </Avatar>

@@ -91,21 +91,21 @@ const HomePage = () => {
 
   // Compose dynamic, sorted categories with icons
   const categoryIcons = {
-    "Restaurants": "🍔",
-    "Shopping": "🛍️",
-    "Health & Beauty": "💇",
-    "Automotive": "🚗",
-    "Entertainment": "🎬",
-    "Education": "🎓",
-    "Accommodation": "🏨",
+    "Restaurants": "",
+    "Shopping": "",
+    "Health & Beauty": "",
+    "Automotive": "",
+    "Entertainment": "",
+    "Education": "",
+    "Accommodation": "",
     // Add more mappings as needed
   };
   const sortedCategories = [
-    { name: "All", icon: "🏠" },
+    { name: "All", icon: "" },
     ...[...(categories || [])]
       .filter(cat => cat && cat.name)
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(cat => ({ name: cat.name, icon: categoryIcons[cat.name] || "🏷️" }))
+      .map(cat => ({ name: cat.name, icon: categoryIcons[cat.name] || "" }))
   ];
 
   // Multi-category filter
