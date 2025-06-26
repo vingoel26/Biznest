@@ -54,6 +54,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/hello/**", "/api/contact/**", "/api/password/**", "/error").permitAll()
                 .requestMatchers("/api/categories/**").permitAll()
                 .requestMatchers("/api/listings/**").permitAll()
+                .requestMatchers("/api/user/profile-image/**").permitAll()
                 .requestMatchers("/api/dashboard/analytics").authenticated()
                 .anyRequest().authenticated()
             );

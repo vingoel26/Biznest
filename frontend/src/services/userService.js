@@ -82,13 +82,13 @@ const userService = {
     }
   },
 
-  // Upload profile picture (placeholder for future implementation)
+  // Upload profile picture (fixed implementation)
   uploadProfilePicture: async (file) => {
     try {
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("image", file)
 
-      const response = await api.post("/api/user/profile-picture", formData, {
+      const response = await api.post("/api/user/profile-image", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

@@ -62,7 +62,8 @@ export default function Footer() {
               <FooterLink to="/home">Home</FooterLink>
               <FooterLink to="/about">About Us</FooterLink>
               <FooterLink to="/contact">Contact</FooterLink>
-              <FooterLink to="/login">Login</FooterLink>
+              <FooterLink to="/profile">Profile</FooterLink>
+              <FooterLink to="/theme-settings">Theme Settings</FooterLink>
               {isAdmin && <FooterLink to="/dashboard">Dashboard</FooterLink>}
             </ul>
           </div>

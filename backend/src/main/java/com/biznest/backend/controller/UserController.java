@@ -5,11 +5,14 @@ import com.biznest.backend.model.User;
 import com.biznest.backend.model.UserEntity;
 import com.biznest.backend.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.HashMap;
@@ -53,6 +56,7 @@ public class UserController {
         safeUser.put("roles", user.getRoles());
         safeUser.put("createdAt", user.getCreatedAt());
         safeUser.put("updatedAt", user.getUpdatedAt());
+        safeUser.put("profileImageUrl", "/api/user/profile-image/" + user.getId());
         
         return ResponseEntity.ok(safeUser);
     }
@@ -190,5 +194,36 @@ public class UserController {
         } else {
             return ResponseEntity.badRequest().body(new MessageResponse("Cannot delete user. User may be an admin or not found."));
         }
+    }
+
+    // --- Profile Image Upload/Fetch ---
+    @PostMapping("/profile-image")
+    public ResponseEntity<?> uploadProfileImage(Principal principal, @RequestParam("image") MultipartFile imageFile) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(new MessageResponse("No authenticated user found."));
+        }
+        String username = principal.getName();
+        try {
+            UserEntity user = userService.getUserByUsername(username);
+            if (user == null) {
+                return ResponseEntity.status(404).body(new MessageResponse("User not found."));
+            }
+            user.setProfileImage(imageFile.getBytes());
+            userService.saveUser(user);
+            return ResponseEntity.ok(new MessageResponse("Profile image updated successfully."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new MessageResponse("Error uploading profile image: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/profile-image/{userId}")
+    public ResponseEntity<?> getProfileImage(@PathVariable Long userId) {
+        UserEntity user = userService.getUserById(userId);
+        if (user == null || user.getProfileImage() == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
+                .body(user.getProfileImage());
     }
 }

@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom"
 import {
   User,
   Mail,
-  Phone,
   MapPin,
   Camera,
   Edit,
@@ -34,13 +33,13 @@ const ProfilePage = () => {
     bio: "",
     location: "",
     website: "",
-    phone: "",
     profilePicture: null,
     roles: [],
   })
   const [formData, setFormData] = useState({ ...profileData })
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [imageCacheBuster, setImageCacheBuster] = useState(Date.now())
 
   // Add this state for password update
   const [passwordData, setPasswordData] = useState({
@@ -114,21 +113,32 @@ const ProfilePage = () => {
         bio: formData.bio,
         location: formData.location,
         website: formData.website,
-        phone: formData.phone,
       })
 
       // Then upload profile picture if selected
       if (selectedFile) {
         try {
           await userService.uploadProfilePicture(selectedFile)
-          // In a real implementation, this would update the profile picture URL
+          // Refetch user profile to update image URL
+          const userData = await userService.getCurrentUser()
+          setPreviewUrl(null)
+          setSelectedFile(null)
+          setImageCacheBuster(Date.now())
+          setProfileData(userData)
+          setFormData(userData)
+          console.log('ProfilePage profileData after save:', userData)
+          localStorage.setItem('profileImageUpdated', Date.now())
+          window.dispatchEvent(new Event('profileImageUpdated'))
         } catch (uploadError) {
           console.error("Failed to upload profile picture:", uploadError)
           // Continue with profile update even if picture upload fails
         }
+      } else {
+        // Refetch user profile to ensure all fields (including image) are up to date
+        const userData = await userService.getCurrentUser()
+        setProfileData(userData)
+        setFormData(userData)
       }
-
-      setProfileData(updatedProfile)
       setIsEditing(false)
       setIsLoading(false)
       setError(null)
@@ -192,6 +202,13 @@ const ProfilePage = () => {
     }
   }
 
+  let imageSrc = defaultUserPicture;
+  if (previewUrl) {
+    imageSrc = previewUrl;
+  } else if (profileData && profileData.profileImageUrl) {
+    imageSrc = profileData.profileImageUrl + '?cb=' + imageCacheBuster;
+  }
+
   // Show loading state
   if (isLoading && !profileData.username) {
     return (
@@ -218,9 +235,11 @@ const ProfilePage = () => {
               <div className="p-6 text-center border-b border-border">
                 <div className="relative inline-block">
                   <img
-                    src={previewUrl || profileData.profilePicture || defaultUserPicture}
+                    key={imageSrc}
+                    src={imageSrc}
                     alt="Profile"
                     className="h-24 w-24 rounded-full border-2 border-primary mx-auto object-cover"
+                    onError={e => { e.target.onerror = null; e.target.src = defaultUserPicture; }}
                   />
                   {isEditing && (
                     <label className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer">
@@ -357,14 +376,6 @@ const ProfilePage = () => {
                           </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center">
-                          <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0">Phone</div>
-                          <div className="text-card-foreground font-medium flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-primary" />
-                            {profileData.phone || "Not set"}
-                          </div>
-                        </div>
-
                         <div className="flex flex-col sm:flex-row sm:items-start">
                           <div className="text-muted-foreground sm:w-1/3 mb-2 sm:mb-0 sm:pt-1">Location</div>
                           <div className="text-card-foreground font-medium flex items-start">
@@ -466,21 +477,6 @@ const ProfilePage = () => {
                             className="bg-background/50 border border-input rounded-lg px-4 py-2 text-foreground/70 focus:outline-none cursor-not-allowed"
                           />
                           <p className="text-xs text-muted-foreground mt-1">Contact admin to change email</p>
-                        </div>
-
-                        <div className="flex flex-col">
-                          <label htmlFor="phone" className="text-muted-foreground mb-1">
-                            Phone
-                          </label>
-                          <input
-                            type="tel"
-                            id="phone"
-                            name="phone"
-                            value={formData.phone || ""}
-                            onChange={handleInputChange}
-                            className="bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                            placeholder="+1 (555) 123-4567"
-                          />
                         </div>
 
                         <div className="flex flex-col">

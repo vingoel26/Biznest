@@ -8,6 +8,7 @@ import { Link } from "react-router-dom"
 const ForgotPasswordPage = () => {
   const [step, setStep] = useState(1) // 1: email, 2: OTP, 3: new password
   const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [otp, setOtp] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -21,11 +22,17 @@ const ForgotPasswordPage = () => {
     setLoading(true)
     setMessage("")
 
+    if (!username || !email) {
+      setMessage("Please enter both username and email.")
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch("http://localhost:8080/api/password/forgot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ username, email }),
       })
 
       if (response.ok) {
@@ -47,11 +54,17 @@ const ForgotPasswordPage = () => {
     setLoading(true)
     setMessage("")
 
+    if (!username || !email) {
+      setMessage("Please enter both username and email.")
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch("http://localhost:8080/api/password/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp, newPassword }),
+        body: JSON.stringify({ username, email, otp, newPassword }),
       })
 
       if (response.ok) {
@@ -101,6 +114,22 @@ const ForgotPasswordPage = () => {
           {step === 1 && (
             <form onSubmit={handleSendOTP}>
               <div className="mb-6">
+                <label htmlFor="username" className="block text-sm font-medium text-card-foreground mb-2">
+                  Username
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Enter your username"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="mb-6">
                 <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-2">
                   Email Address
                 </label>
@@ -125,6 +154,22 @@ const ForgotPasswordPage = () => {
 
           {step === 2 && (
             <form onSubmit={handleVerifyOTP}>
+              <div className="mb-6">
+                <label htmlFor="username" className="block text-sm font-medium text-card-foreground mb-2">
+                  Username
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Enter your username"
+                    required
+                  />
+                </div>
+              </div>
               <div className="mb-6">
                 <label htmlFor="otp" className="block text-sm font-medium text-card-foreground mb-2">
                   OTP Code

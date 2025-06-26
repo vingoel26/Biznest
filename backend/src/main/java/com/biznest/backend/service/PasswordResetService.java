@@ -41,7 +41,19 @@ public class PasswordResetService {
         return true;
     }
 
-    public boolean verifyOTPAndResetPassword(String email, String otp, String newPassword) {
+    public boolean sendPasswordResetOTP(String username, String email) {
+        UserEntity user = userRepository.findByUsernameAndEmail(username, email);
+        if (user == null) {
+            return false; // User not found
+        }
+        String otp = generateOTP();
+        LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(10);
+        otpStorage.put(email, new OTPData(otp, expiryTime));
+        mailService.sendPasswordResetOTP(email, otp);
+        return true;
+    }
+
+    public boolean verifyOTPAndResetPassword(String username, String email, String otp, String newPassword) {
         OTPData otpData = otpStorage.get(email);
         if (otpData == null) {
             return false; // No OTP found
@@ -56,12 +68,14 @@ public class PasswordResetService {
             return false; // Invalid OTP
         }
 
-        // Update password
-        UserEntity user = userRepository.findByEmail(email);
-        if (user != null) {
-            user.setPassword(passwordEncoder.encode(newPassword));
-            userRepository.save(user);
+        // Update password only if username and email match exactly one user
+        UserEntity user = userRepository.findByUsernameAndEmail(username, email);
+        if (user == null) {
+            return false; // No user found with this username and email
         }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
 
         // Remove OTP after successful use
         otpStorage.remove(email);

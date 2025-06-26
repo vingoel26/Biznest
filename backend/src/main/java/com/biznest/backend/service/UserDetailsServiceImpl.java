@@ -125,4 +125,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         userRepository.save(user);
         return true;
     }
+
+    public void saveUser(UserEntity user) {
+        userRepository.save(user);
+    }
+
+    public UserEntity getUserById(Long id) {
+        return userRepository.findById(id).orElse(null);
+    }
 }

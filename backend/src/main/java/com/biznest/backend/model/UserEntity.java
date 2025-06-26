@@ -43,6 +43,10 @@ public class UserEntity {
     private String website;
     private String profilePicture;
 
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    private byte[] profileImage;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private java.util.List<BusinessListing> businessListings = new java.util.ArrayList<>();

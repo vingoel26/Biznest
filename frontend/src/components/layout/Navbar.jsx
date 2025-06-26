@@ -6,6 +6,8 @@ import { Menu, X, User, LogOut, Settings, Palette } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import logoImg from "/images/logo (2).png"
+import defaultUserPicture from "/images/defaultUserPicture.png"
+import userService from "../../services/userService"
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -15,6 +17,8 @@ export default function Navbar() {
   const isLoggedIn = !!localStorage.getItem("username")
   const isAdmin = localStorage.getItem("isAdmin") === "true"
   const username = localStorage.getItem("username") || "User"
+  const [profileImageUrl, setProfileImageUrl] = useState(null)
+  const [cacheBuster, setCacheBuster] = useState(Date.now())
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
   const toggleDropdown = () => setIsDropdownVisible(!isDropdownVisible)
@@ -48,6 +52,35 @@ export default function Navbar() {
   const isIndexPage = location.pathname === "/"
   const showRestrictedNav = isIndexPage && !isLoggedIn
 
+  useEffect(() => {
+    async function fetchProfileImage() {
+      if (isLoggedIn) {
+        try {
+          const user = await userService.getCurrentUser()
+          setProfileImageUrl(user.profileImageUrl)
+          setCacheBuster(Date.now())
+          console.log('Navbar profileImageUrl:', user.profileImageUrl)
+        } catch (e) {
+          setProfileImageUrl(null)
+        }
+      } else {
+        setProfileImageUrl(null)
+      }
+    }
+    fetchProfileImage()
+    // Listen for storage changes (profile update in another tab)
+    const onStorage = (e) => {
+      if (e.key === "profileImageUpdated") fetchProfileImage()
+    }
+    window.addEventListener("storage", onStorage)
+    // Listen for custom event in the same tab
+    window.addEventListener('profileImageUpdated', fetchProfileImage)
+    return () => {
+      window.removeEventListener("storage", onStorage)
+      window.removeEventListener('profileImageUpdated', fetchProfileImage)
+    }
+  }, [isLoggedIn])
+
   return (
     <header className="bg-primary text-primary-foreground shadow-md transition-colors duration-300">
       <div className="container mx-auto px-4">
@@ -58,48 +91,60 @@ export default function Navbar() {
             <span className="text-xl font-bold">BizNest</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            {!showRestrictedNav && (
-              <>
-                {isLoggedIn && (
-                  <NavLink to="/home" active={location.pathname === "/home"}>
-                    Home
-                  </NavLink>
-                )}
-                <NavLink to="/about" active={location.pathname === "/about"}>
-                  About
-                </NavLink>
-                <NavLink to="/contact" active={location.pathname === "/contact"}>
-                  Contact
-                </NavLink>
-                {isAdmin && (
-                  <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>
-                    Dashboard
-                  </NavLink>
-                )}
-              </>
-            )}
+          {/* Spacer to push nav and user to right */}
+          <div className="flex-1" />
 
-            <ThemeToggle className="mr-2" />
-
-            {!isLoggedIn ? (
-              <NavLink to="/login" active={location.pathname === "/login"}>
-                Login
-              </NavLink>
-            ) : (
-              <div className="relative user-dropdown-container">
+          {/* Navigation links, username, and profile picture on right */}
+          <div className="hidden md:flex items-center space-x-2">
+            <nav className="flex items-center space-x-1">
+              {!showRestrictedNav && (
+                <>
+                  {isLoggedIn && (
+                    <NavLink to="/home" active={location.pathname === "/home"}>
+                      Home
+                    </NavLink>
+                  )}
+                  <NavLink to="/about" active={location.pathname === "/about"}>
+                    About
+                  </NavLink>
+                  <NavLink to="/contact" active={location.pathname === "/contact"}>
+                    Contact
+                  </NavLink>
+                  {isAdmin && (
+                    <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>
+                      Dashboard
+                    </NavLink>
+                  )}
+                </>
+              )}
+              <ThemeToggle className="mr-2" />
+              {!isLoggedIn && (
+                <NavLink to="/login" active={location.pathname === "/login"}>
+                  Login
+                </NavLink>
+              )}
+            </nav>
+            {/* Profile Picture/User Dropdown - rightmost */}
+            {isLoggedIn && (
+              <div className="relative user-dropdown-container flex items-center space-x-2 ml-2">
                 <Button
                   variant="ghost"
                   className="flex items-center space-x-2 hover:bg-primary-foreground/20 text-primary-foreground"
                   onClick={toggleDropdown}
                 >
-                  <User className="h-5 w-5" />
                   <span>{username}</span>
                 </Button>
-
+                <Link to="/profile">
+                  <img
+                    src={profileImageUrl ? profileImageUrl + '?cb=' + cacheBuster : defaultUserPicture}
+                    alt="Profile"
+                    className="h-8 w-8 rounded-full object-cover border-2 border-primary mr-2"
+                    onError={e => { e.target.onerror = null; e.target.src = defaultUserPicture; }}
+                    style={{ cursor: "pointer" }}
+                  />
+                </Link>
                 {isDropdownVisible && (
-                  <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 z-10 border border-border">
+                  <div className="absolute left-1/2 top-full mt-2 w-48 -translate-x-1/2 bg-card rounded-md shadow-lg py-1 z-10 border border-border">
                     <div className="px-4 py-2 text-sm text-card-foreground/70 border-b border-border">
                       Signed in as <span className="font-medium text-card-foreground">{username}</span>
                     </div>
@@ -151,7 +196,7 @@ export default function Navbar() {
                 )}
               </div>
             )}
-          </nav>
+          </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-2">
