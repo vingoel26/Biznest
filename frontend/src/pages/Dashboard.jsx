@@ -318,6 +318,13 @@ const Dashboard = () => {
     }
   }, [view, isAdmin]);
 
+  // Fetch paginated listings when page, size, or view changes to 'listings'
+  useEffect(() => {
+    if (view === "listings") {
+      fetchListings(page, size);
+    }
+  }, [page, size, view]);
+
   const fetchUsers = async () => {
     try {
       setIsLoadingUsers(true)

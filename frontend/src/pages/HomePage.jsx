@@ -10,7 +10,7 @@ import listingService from "../services/listingService"
 
 const HomePage = () => {
   const navigate = useNavigate()
-  const { listings, metrics, categories } = useListings()
+  const { listings, metrics, categories, fetchListings } = useListings()
   const { reviews, addReview, getReviewsByListing, getAverageRatingByListing } = useReviews()
   const [selectedCategories, setSelectedCategories] = useState(["All"])
   const [searchQuery, setSearchQuery] = useState("")
@@ -53,6 +53,41 @@ const HomePage = () => {
       window.removeEventListener("categorySelected", handleCategoryEvent)
     }
   }, [])
+
+  // Always fetch all listings when HomePage is mounted
+  useEffect(() => {
+    fetchListings(0, 10000); // Fetch all listings (set size to a very large number)
+  }, []);
+
+  // Reset image cache and fetch images for all approved listings when listings change
+  useEffect(() => {
+    setListingImages({});
+    fetchedImageIds.current = new Set();
+
+    let isMounted = true;
+    const fetchImages = async () => {
+      const newImages = {};
+      await Promise.all(listings
+        .filter(listing => listing.status === 'Approved')
+        .map(async (listing) => {
+          try {
+            const blob = await listingService.getListingImage(listing.id);
+            const url = URL.createObjectURL(blob);
+            newImages[listing.id] = url;
+            fetchedImageIds.current.add(listing.id);
+          } catch (err) {
+            // Optionally log error
+          }
+        }));
+      if (isMounted && Object.keys(newImages).length > 0) {
+        setListingImages(prev => ({ ...prev, ...newImages }));
+      }
+    };
+    if (listings.length > 0) {
+      fetchImages();
+    }
+    return () => { isMounted = false; };
+  }, [listings]);
 
   // Compose dynamic, sorted categories with icons
   const categoryIcons = {
@@ -170,33 +205,6 @@ const HomePage = () => {
       day: "numeric",
     })
   }
-
-  // Fetch images for visible listings
-  useEffect(() => {
-    let isMounted = true;
-    const fetchImages = async () => {
-      const newImages = {};
-      await Promise.all(filteredListings.map(async (listing) => {
-        if (!listingImages[listing.id] && !fetchedImageIds.current.has(listing.id)) {
-          try {
-            console.log('Fetching image for listing:', listing.id, listing.name);
-            const blob = await listingService.getListingImage(listing.id);
-            const url = URL.createObjectURL(blob);
-            newImages[listing.id] = url;
-            fetchedImageIds.current.add(listing.id);
-          } catch (err) {
-            console.log('Failed to fetch image for listing:', listing.id, err);
-          }
-        }
-      }));
-      if (isMounted && Object.keys(newImages).length > 0) {
-        setListingImages(prev => ({ ...prev, ...newImages }));
-      }
-    };
-    fetchImages();
-    return () => { isMounted = false; };
-    // eslint-disable-next-line
-  }, [filteredListings]);
 
   // Revoke blob URLs only on component unmount
   useEffect(() => {
