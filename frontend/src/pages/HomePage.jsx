@@ -213,6 +213,10 @@ const HomePage = () => {
     };
   }, []);
 
+  const openListingPage = (listingId) => {
+    navigate(`/listing/${listingId}`);
+  };
+
   return (
     <div className="bg-background text-foreground min-h-screen">
       {/* User Profile Section */}
@@ -281,7 +285,8 @@ const HomePage = () => {
                 return (
                   <div
                     key={listing.id}
-                    className="bg-card border border-border rounded-xl overflow-hidden transition-transform hover:transform hover:-translate-y-2"
+                    className="bg-card border border-border rounded-xl overflow-hidden transition-transform hover:transform hover:-translate-y-2 cursor-pointer"
+                    onClick={() => openListingPage(listing.id)}
                   >
                     <div className="h-48 bg-cover bg-center">
                       {listingImages[listing.id] ? (
@@ -323,7 +328,7 @@ const HomePage = () => {
                         <Button
                           variant="outline"
                           className="border-primary text-primary hover:bg-primary/10"
-                          onClick={() => openDetailsModal(listing)}
+                          onClick={(e) => openDetailsModal(listing)}
                         >
                           <span>View Details</span>
                           <ExternalLink className="ml-2 h-4 w-4" />

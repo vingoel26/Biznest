@@ -14,6 +14,7 @@ import { ListingsProvider } from "./context/ListingsContext"
 import { ThemeProvider } from "./context/ThemeContext"
 import { useEffect } from "react"
 import ForgotPasswordPage from "./pages/ForgotPasswordPage"
+import ListingDetailsPage from "./pages/ListingDetailsPage"
 
 function App() {
   const isLoggedIn = !!localStorage.getItem("username")
@@ -63,6 +64,7 @@ function App() {
               path="/dashboard"
               element={isLoggedIn && isAdmin ? <Dashboard /> : <Navigate to="/login" replace />}
             />
+            <Route path="/listing/:id" element={isLoggedIn ? <ListingDetailsPage /> : <Navigate to="/login" replace />} />
           </Route>
 
           {/* Fallback route */}
