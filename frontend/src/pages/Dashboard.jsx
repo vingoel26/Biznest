@@ -65,7 +65,7 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats, fetchListingsByCategory } = useListings()
-  const { reviews, addResponse, deleteReview } = useReviews()
+  const { reviews, addResponse, deleteReview, getAverageRatingByListing } = useReviews()
 
   const [view, setView] = useState("dashboard")
   const [formData, setFormData] = useState({
@@ -340,7 +340,7 @@ const Dashboard = () => {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     let userProfile;
     try {
       userProfile = await userService.getCurrentUser();
@@ -370,6 +370,8 @@ const Dashboard = () => {
       const newListing = await addListing(listingData);
       listingId = newListing.id;
     }
+    setIsModalOpen(false); // Close modal immediately after add/edit
+    console.log("Modal should now be closed");
     // Upload image if selected
     if (selectedImageFile && listingId) {
       await listingService.uploadListingImage(listingId, selectedImageFile);
@@ -386,12 +388,11 @@ const Dashboard = () => {
       hours: "",
       image: "/images/restaurant-image.webp",
       owner: ""
-    })
-    setIsEditMode(false)
-    setEditId(null)
-    setIsModalOpen(false)
+    });
+    setIsEditMode(false);
+    setEditId(null);
     fetchAnalytics(); // Refresh analytics
-  }
+  };
 
   const handleEdit = (id) => {
     const listing = listings.find((l) => l.id === id)
@@ -1140,13 +1141,13 @@ const Dashboard = () => {
                                           <Star
                                             key={i}
                                             className={`h-4 w-4 ${
-                                              i < Math.floor(listing.rating)
+                                              i < Math.floor(getAverageRatingByListing(listing.id) || 4.5)
                                                 ? "text-yellow-400 fill-yellow-400"
                                                 : "text-gray-300"
                                             }`}
                                           />
                                         ))}
-                                        <span className="ml-2 text-sm text-muted-foreground">{listing.rating}</span>
+                                        <span className="ml-2 text-sm text-muted-foreground">{getAverageRatingByListing(listing.id) || 4.5}</span>
                                       </div>
                                     </td>
                                     <td className="py-3 px-4 text-right">

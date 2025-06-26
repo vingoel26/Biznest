@@ -183,8 +183,9 @@ export const ListingsProvider = ({ children }) => {
       category: listing.category ? parseInt(listing.category) : undefined,
       owner: listing.owner ? parseInt(listing.owner) : undefined,
     };
-    await listingService.createListing(listingToSend)
-    fetchListings(page, size)
+    const newListing = await listingService.createListing(listingToSend);
+    fetchListings(page, size);
+    return newListing; // Return the new listing object
   }
 
   // Update an existing listing
