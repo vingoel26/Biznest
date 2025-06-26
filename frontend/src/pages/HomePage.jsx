@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, Star, MapPin, Phone, Clock, ExternalLink, MessageSquare, X, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useListings } from "../context/ListingsContext"
 import { useReviews } from "../context/ReviewsContext"
+import listingService from "../services/listingService"
 
 const HomePage = () => {
   const navigate = useNavigate()
@@ -20,6 +21,9 @@ const HomePage = () => {
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" })
   const [listingReviews, setListingReviews] = useState([])
   const username = localStorage.getItem("username") || "User"
+  // Cache for blob URLs
+  const [listingImages, setListingImages] = useState({})
+  const fetchedImageIds = useRef(new Set())
 
   // Check if user is logged in
   useEffect(() => {
@@ -167,6 +171,40 @@ const HomePage = () => {
     })
   }
 
+  // Fetch images for visible listings
+  useEffect(() => {
+    let isMounted = true;
+    const fetchImages = async () => {
+      const newImages = {};
+      await Promise.all(filteredListings.map(async (listing) => {
+        if (!listingImages[listing.id] && !fetchedImageIds.current.has(listing.id)) {
+          try {
+            console.log('Fetching image for listing:', listing.id, listing.name);
+            const blob = await listingService.getListingImage(listing.id);
+            const url = URL.createObjectURL(blob);
+            newImages[listing.id] = url;
+            fetchedImageIds.current.add(listing.id);
+          } catch (err) {
+            console.log('Failed to fetch image for listing:', listing.id, err);
+          }
+        }
+      }));
+      if (isMounted && Object.keys(newImages).length > 0) {
+        setListingImages(prev => ({ ...prev, ...newImages }));
+      }
+    };
+    fetchImages();
+    return () => { isMounted = false; };
+    // eslint-disable-next-line
+  }, [filteredListings]);
+
+  // Revoke blob URLs only on component unmount
+  useEffect(() => {
+    return () => {
+      Object.values(listingImages).forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
+
   return (
     <div className="bg-background text-foreground min-h-screen">
       {/* User Profile Section */}
@@ -237,7 +275,16 @@ const HomePage = () => {
                     key={listing.id}
                     className="bg-card border border-border rounded-xl overflow-hidden transition-transform hover:transform hover:-translate-y-2"
                   >
-                    <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${listing.image})` }} />
+                    <div className="h-48 bg-cover bg-center">
+                      {listingImages[listing.id] ? (
+                        <>
+                          {console.log('Rendering image for', listing.id, listing.name, listingImages[listing.id])}
+                          <img src={listingImages[listing.id]} alt={listing.name} className="h-48 w-full object-cover" />
+                        </>
+                      ) : (
+                        <div className="h-48 w-full bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>
+                      )}
+                    </div>
                     <div className="p-6">
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="text-xl font-semibold text-card-foreground">{listing.name}</h3>
@@ -317,10 +364,13 @@ const HomePage = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative">
-              <div
-                className="h-48 sm:h-64 bg-cover bg-center"
-                style={{ backgroundImage: `url(${selectedListing.image})` }}
-              />
+              <div className="h-48 sm:h-64 bg-cover bg-center">
+                {listingImages[selectedListing.id] ? (
+                  <img src={listingImages[selectedListing.id]} alt={selectedListing.name} className="h-48 sm:h-64 w-full object-cover" />
+                ) : (
+                  <div className="h-48 sm:h-64 w-full bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>
+                )}
+              </div>
               <button
                 onClick={closeDetailsModal}
                 className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"

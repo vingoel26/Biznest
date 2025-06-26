@@ -118,7 +118,12 @@ export const ListingsProvider = ({ children }) => {
     setError(null)
     try {
       const data = await listingService.getAllListings(page, size)
-      setListings(Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : [])
+      // Map image field to imageUrl if present
+      const listingsArr = Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : [];
+      setListings(listingsArr.map(listing => ({
+        ...listing,
+        image: listing.imageUrl || listing.image || '',
+      })));
       setMetrics((prev) => ({
         ...prev,
         total: data.totalElements || (Array.isArray(data) ? data.length : 0),

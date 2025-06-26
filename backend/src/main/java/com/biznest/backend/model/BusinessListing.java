@@ -38,6 +38,14 @@ public class BusinessListing {
     private String phone;
     private String businessHours;
     private Double rating;
+
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "image")
+    private byte[] imageData;
+
+    private String imageType; // e.g. 'image/png', 'image/jpeg'
+
     private String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)

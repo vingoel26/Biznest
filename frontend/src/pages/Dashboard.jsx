@@ -59,6 +59,7 @@ import {
   Line,
 } from "recharts"
 import dashboardService from "../services/dashboardService"
+import listingService from "../services/listingService"
 
 const Dashboard = () => {
   const navigate = useNavigate()
@@ -132,6 +133,22 @@ const Dashboard = () => {
     ratingTrend: ""
   });
   const [analyticsError, setAnalyticsError] = useState(null);
+
+  // Add state for image file and preview
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+
+  const handleImageFileChange = (e) => {
+    const file = e.target.files[0];
+    setSelectedImageFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreviewUrl(reader.result);
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreviewUrl(null);
+    }
+  };
 
   // Function to handle expand/collapse
   const handleToggleCategoryListings = async (categoryId) => {
@@ -345,10 +362,17 @@ const Dashboard = () => {
       owner: userProfile.id // <-- set owner here
     };
     console.log("Submitting listingData:", listingData);
+    let listingId;
     if (isEditMode) {
-      await updateListing(editId, listingData)
+      await updateListing(editId, listingData);
+      listingId = editId;
     } else {
-      await addListing(listingData)
+      const newListing = await addListing(listingData);
+      listingId = newListing.id;
+    }
+    // Upload image if selected
+    if (selectedImageFile && listingId) {
+      await listingService.uploadListingImage(listingId, selectedImageFile);
     }
     setFormData({
       name: "",
@@ -381,9 +405,17 @@ const Dashboard = () => {
       address: listing.address || "",
       phone: listing.phone || "",
       hours: listing.businessHours || "",
-      image: listing.imageUrl || "/images/restaurant-image.webp",
+      image: '', // not used for blob
       owner: listing.owner
-    })
+    });
+    setSelectedImageFile(null);
+    // Fetch image blob for preview
+    setImagePreviewUrl(null);
+    listingService.getListingImage(id).then(blob => {
+      if (blob && blob.size > 0) {
+        setImagePreviewUrl(URL.createObjectURL(blob));
+      }
+    });
     setIsEditMode(true)
     setEditId(id)
     setIsModalOpen(true)
@@ -407,9 +439,11 @@ const Dashboard = () => {
       address: "",
       phone: "",
       hours: "",
-      image: "/images/restaurant-image.webp",
+      image: '',
       owner: ""
-    })
+    });
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
     setIsEditMode(false)
     setIsModalOpen(true)
   }
@@ -1504,6 +1538,7 @@ const Dashboard = () => {
                                       />
                                     ))}
                                   </div>
+                                  <p className="text-sm text-card-foreground">{review.comment}</p>
                                 </div>
                                 <div className="flex space-x-2">
                                   <Button
@@ -1656,185 +1691,191 @@ const Dashboard = () => {
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-card rounded-xl shadow-lg max-w-2xl w-full mx-4">
-              <div className="p-6 border-b border-border flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-card-foreground">
-                  {isEditMode ? "Edit Listing" : "Add New Listing"}
-                </h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-5 w-5" />
-                </button>
+              <div className="p-6 border-b border-border flex justify-between items-center"></div>
+              <div className="max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-border flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-card-foreground">
+                    {isEditMode ? "Edit Listing" : "Add New Listing"}
+                  </h2>
+                  <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                  <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Business Name
+                        </label>
+                        <input
+                          type="text"
+                          id="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="category" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Category
+                        </label>
+                        <select
+                          id="category"
+                          value={formData.category}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          required
+                        >
+                          <option value="">Select a category</option>
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="location" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Location
+                        </label>
+                        <input
+                          type="text"
+                          id="location"
+                          value={formData.location}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="status" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Status
+                        </label>
+                        <select
+                          id="status"
+                          value={formData.status}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <option value="Approved">Approved</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="desc" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        id="desc"
+                        value={formData.desc}
+                        onChange={handleChange}
+                        rows="3"
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      ></textarea>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="address" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Address
+                        </label>
+                        <input
+                          type="text"
+                          id="address"
+                          value={formData.address}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Phone
+                        </label>
+                        <input
+                          type="text"
+                          id="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="hours" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Business Hours
+                        </label>
+                        <input
+                          type="text"
+                          id="hours"
+                          value={formData.hours}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="e.g. 9:00 AM - 5:00 PM"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="rating" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Rating
+                        </label>
+                        <input
+                          type="number"
+                          id="rating"
+                          value={formData.rating}
+                          onChange={handleChange}
+                          min="1"
+                          max="5"
+                          step="0.1"
+                          className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="imageFile" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Listing Image
+                      </label>
+                      <input
+                        type="file"
+                        id="imageFile"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      {imagePreviewUrl && (
+                        <img src={imagePreviewUrl} alt="Preview" className="mt-2 h-32 w-32 object-cover rounded-md border" />
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Upload a new image or leave empty to keep the current/default image.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-6 border-t border-border flex justify-end space-x-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsModalOpen(false)}
+                      className="border-border text-foreground hover:bg-accent"
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-primary hover:bg-primary/90">
+                      {isEditMode ? "Update Listing" : "Add Listing"}
+                    </Button>
+                  </div>
+                </form>
               </div>
-
-              <form onSubmit={handleSubmit}>
-                <div className="p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Business Name
-                      </label>
-                      <input
-                        type="text"
-                        id="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="category" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Category
-                      </label>
-                      <select
-                        id="category"
-                        value={formData.category}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        required
-                      >
-                        <option value="">Select a category</option>
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="location" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Location
-                      </label>
-                      <input
-                        type="text"
-                        id="location"
-                        value={formData.location}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="status" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Status
-                      </label>
-                      <select
-                        id="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      >
-                        <option value="Approved">Approved</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="desc" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="desc"
-                      value={formData.desc}
-                      onChange={handleChange}
-                      rows="3"
-                      className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    ></textarea>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="address" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Address
-                      </label>
-                      <input
-                        type="text"
-                        id="address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Phone
-                      </label>
-                      <input
-                        type="text"
-                        id="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="hours" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Business Hours
-                      </label>
-                      <input
-                        type="text"
-                        id="hours"
-                        value={formData.hours}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        placeholder="e.g. 9:00 AM - 5:00 PM"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="rating" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Rating
-                      </label>
-                      <input
-                        type="number"
-                        id="rating"
-                        value={formData.rating}
-                        onChange={handleChange}
-                        min="1"
-                        max="5"
-                        step="0.1"
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="image" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Image URL
-                    </label>
-                    <input
-                      type="text"
-                      id="image"
-                      value={formData.image}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Leave empty to use default image for the category
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-6 border-t border-border flex justify-end space-x-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsModalOpen(false)}
-                    className="border-border text-foreground hover:bg-accent"
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-primary hover:bg-primary/90">
-                    {isEditMode ? "Update Listing" : "Add Listing"}
-                  </Button>
-                </div>
-              </form>
             </div>
           </div>
         )}
@@ -2089,5 +2130,8 @@ const MetricCard = ({ title, value, icon, trend }) => {
     </div>
   )
 }
+
+// Add handler for file input
+
 
 export default Dashboard

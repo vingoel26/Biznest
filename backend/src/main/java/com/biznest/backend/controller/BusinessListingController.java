@@ -8,8 +8,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 import java.util.List;
 import java.util.Optional;
@@ -59,5 +63,28 @@ public class BusinessListingController {
     @GetMapping("/by-owner")
     public ResponseEntity<List<BusinessListing>> getListingsByOwner(@RequestParam Long ownerId) {
         return ResponseEntity.ok(businessListingService.getAllByOwner(ownerId));
+    }
+
+    @PostMapping("/{id}/image")
+    public ResponseEntity<?> uploadListingImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        try {
+            businessListingService.saveListingImage(id, file);
+            return ResponseEntity.ok().body("Image uploaded successfully");
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body("Failed to upload image");
+        }
+    }
+
+    @GetMapping("/{id}/image")
+    public ResponseEntity<byte[]> getListingImage(@PathVariable Long id) {
+        Optional<BusinessListing> listingOpt = businessListingService.getListing(id);
+        if (listingOpt.isPresent() && listingOpt.get().getImageData() != null) {
+            BusinessListing listing = listingOpt.get();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(listing.getImageType() != null ? listing.getImageType() : MediaType.IMAGE_JPEG_VALUE));
+            return new ResponseEntity<>(listing.getImageData(), headers, 200);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 } 

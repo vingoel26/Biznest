@@ -20,7 +20,7 @@ const listingService = {
   },
 
   // Get all listings (paginated)
-  getAllListings: async (page = 0, size = 10) => {
+  getAllListings: async (page = 0, size = 1) => {
     const response = await api.get(`/api/listings?page=${page}&size=${size}`);
     return response.data;
   },
@@ -42,7 +42,7 @@ const listingService = {
   },
 
   // Search and filter listings (paginated)
-  searchListings: async ({ name = "", category = "", location = "", page = 0, size = 10 }) => {
+  searchListings: async ({ name = "", category = "", location = "", page = 0, size = 1 }) => {
     const params = new URLSearchParams({ name, category, location, page, size });
     const response = await api.get(`/api/listings/search?${params.toString()}`);
     return response.data;
@@ -51,6 +51,22 @@ const listingService = {
   // Get all listings by category (not paginated)
   getListingsByCategory: async (categoryId) => {
     const response = await api.get(`/api/listings/by-category?categoryId=${categoryId}`);
+    return response.data;
+  },
+
+  // Upload a listing image
+  uploadListingImage: async (listingId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/listings/${listingId}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Get a listing image as blob
+  getListingImage: async (listingId) => {
+    const response = await api.get(`/api/listings/${listingId}/image`, { responseType: 'blob' });
     return response.data;
   },
 };

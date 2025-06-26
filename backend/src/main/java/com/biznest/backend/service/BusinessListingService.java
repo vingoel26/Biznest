@@ -10,6 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
+import java.io.IOException;
 
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +56,10 @@ public class BusinessListingService {
                 existing.setBusinessHours(updated.getBusinessHours());
                 existing.setRating(updated.getRating());
                 existing.setImageUrl(updated.getImageUrl());
+                if (updated.getImageData() != null) {
+                    existing.setImageData(updated.getImageData());
+                    existing.setImageType(updated.getImageType());
+                }
                 return businessListingRepository.save(existing);
             })
             .orElseThrow(() -> new RuntimeException("Listing not found"));
@@ -88,5 +95,12 @@ public class BusinessListingService {
     public List<BusinessListing> getAllByOwner(Long ownerId) {
         UserEntity owner = userRepository.findById(ownerId).orElseThrow(() -> new RuntimeException("User not found"));
         return businessListingRepository.findByOwner(owner);
+    }
+
+    public void saveListingImage(Long id, MultipartFile file) throws IOException {
+        BusinessListing listing = getListing(id).orElseThrow(() -> new RuntimeException("Listing not found"));
+        listing.setImageData(file.getBytes());
+        listing.setImageType(file.getContentType());
+        businessListingRepository.save(listing);
     }
 } 
