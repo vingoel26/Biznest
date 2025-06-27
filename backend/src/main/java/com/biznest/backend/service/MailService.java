@@ -18,10 +18,10 @@ public class MailService {
 
         if ("business".equalsIgnoreCase(type)) {
             subject = "New Business Listing Inquiry from " + name;
-            recipient = "contact.biznest@gmail.com"; // Email for business inquiries
+            recipient = "contact.biznest@gmail.com";
         } else {
             subject = "New General Inquiry from " + name;
-            recipient = "contact.biznest@gmail.com"; // Email for general inquiries
+            recipient = "contact.biznest@gmail.com"; 
         }
 
         mailMessage.setTo(recipient);

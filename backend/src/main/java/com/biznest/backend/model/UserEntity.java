@@ -51,7 +51,6 @@ public class UserEntity {
     @JsonIgnore
     private java.util.List<BusinessListing> businessListings = new java.util.ArrayList<>();
 
-    // Optional convenience constructor
     public UserEntity(String username, String email, String password, Set<String> roles,
                       String displayName, String bio, String location,
                       String website, String profilePicture) {
