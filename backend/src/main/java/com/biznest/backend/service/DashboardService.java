@@ -2,6 +2,7 @@ package com.biznest.backend.service;
 
 import com.biznest.backend.repository.BusinessListingRepository;
 import com.biznest.backend.repository.UserRepository;
+import com.biznest.backend.repository.ReviewRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,9 +18,8 @@ public class DashboardService {
     @Autowired
     private UserRepository userRepository;
     
-    // In a real app, you'd also autowire a ReviewRepository
-    // @Autowired
-    // private ReviewRepository reviewRepository;
+    @Autowired
+    private ReviewRepository reviewRepository;
 
     public Map<String, Object> getDashboardAnalytics() {
         Map<String, Object> analytics = new HashMap<>();
@@ -29,23 +29,30 @@ public class DashboardService {
         long pendingListings = businessListingRepository.countByStatus("Pending");
         long totalUsers = userRepository.count();
         
-        // Mocking review data for now, since there's no ReviewRepository/Service yet
-        long pendingReviews = 12; 
-        double averageRating = 4.7;
+        // Get actual review data
+        long totalReviews = reviewRepository.count();
+        long pendingReviews = reviewRepository.findByBusinessResponseIsNull().size();
+        
+        // Calculate average rating across all reviews
+        Double averageRating = reviewRepository.findAll().stream()
+            .mapToDouble(review -> review.getRating())
+            .average()
+            .orElse(0.0);
 
         analytics.put("totalListings", totalListings);
         analytics.put("activeListings", activeListings);
         analytics.put("pendingListings", pendingListings);
         analytics.put("totalUsers", totalUsers);
+        analytics.put("totalReviews", totalReviews);
         analytics.put("pendingReviews", pendingReviews);
-        analytics.put("averageRating", averageRating);
+        analytics.put("averageRating", Math.round(averageRating * 10.0) / 10.0); // Round to 1 decimal place
         
-        // Mocking trends for now
-        analytics.put("listingsTrend", "+5% from last month");
-        analytics.put("usersTrend", "+12% from last month");
-        analytics.put("reviewsTrend", "+8% from last month");
-        analytics.put("ratingTrend", "+0.2 from last month");
-
+        // Calculate real trends (for now, we'll use simple calculations)
+        // In a production app, you'd store historical data and calculate actual trends
+        analytics.put("listingsTrend", "N/A"); // Would need historical data
+        analytics.put("usersTrend", "N/A"); // Would need historical data  
+        analytics.put("reviewsTrend", "N/A"); // Would need historical data
+        analytics.put("ratingTrend", "N/A"); // Would need historical data
 
         return analytics;
     }

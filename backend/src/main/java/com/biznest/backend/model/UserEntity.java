@@ -51,6 +51,10 @@ public class UserEntity {
     @JsonIgnore
     private java.util.List<BusinessListing> businessListings = new java.util.ArrayList<>();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private java.util.List<Review> reviews = new java.util.ArrayList<>();
+
     public UserEntity(String username, String email, String password, Set<String> roles,
                       String displayName, String bio, String location,
                       String website, String profilePicture) {

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +27,8 @@ public class BusinessListingService {
     private CategoryRepository categoryRepository;
     @Autowired
     private UserRepository userRepository;
+
+    private static final Logger logger = LoggerFactory.getLogger(BusinessListingService.class);
 
     public BusinessListing createListing(BusinessListing listing, Long categoryId, Long ownerId) {
         Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new RuntimeException("Category not found"));
@@ -98,9 +102,24 @@ public class BusinessListingService {
     }
 
     public void saveListingImage(Long id, MultipartFile file) throws IOException {
-        BusinessListing listing = getListing(id).orElseThrow(() -> new RuntimeException("Listing not found"));
-        listing.setImageData(file.getBytes());
-        listing.setImageType(file.getContentType());
-        businessListingRepository.save(listing);
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File cannot be null or empty");
+        }
+        
+        if (!file.getContentType().startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files are allowed");
+        }
+        
+        BusinessListing listing = getListing(id).orElseThrow(() -> new RuntimeException("Listing not found with id: " + id));
+        
+        try {
+            logger.info("Saving image for listing with id: {}", id);
+            listing.setImageData(file.getBytes());
+            listing.setImageType(file.getContentType());
+            businessListingRepository.save(listing);
+            logger.info("Image saved successfully for listing with id: {}", id);
+        } catch (Exception e) {
+            throw new IOException("Failed to save image: " + e.getMessage(), e);
+        }
     }
 } 

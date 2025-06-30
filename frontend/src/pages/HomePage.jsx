@@ -7,23 +7,25 @@ import { Button } from "@/components/ui/button"
 import { useListings } from "../context/ListingsContext"
 import { useReviews } from "../context/ReviewsContext"
 import listingService from "../services/listingService"
+import userService from "../services/userService"
 
 const HomePage = () => {
   const navigate = useNavigate()
-  const { listings, metrics, categories, fetchListings } = useListings()
-  const { reviews, addReview, getReviewsByListing, getAverageRatingByListing } = useReviews()
+  const { listings, metrics, categories, fetchListings, fetchCategories } = useListings()
+  const { reviews, getReviewsByListing, getAverageRatingByListing } = useReviews()
   const [selectedCategories, setSelectedCategories] = useState(["All"])
   const [searchQuery, setSearchQuery] = useState("")
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedListing, setSelectedListing] = useState(null)
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
-  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" })
-  const [listingReviews, setListingReviews] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const username = localStorage.getItem("username") || "User"
   // Cache for blob URLs
   const [listingImages, setListingImages] = useState({})
   const fetchedImageIds = useRef(new Set())
+
+  // Add state for average ratings
+  const [averageRatings, setAverageRatings] = useState({})
 
   // Check if user is logged in
   useEffect(() => {
@@ -31,6 +33,27 @@ const HomePage = () => {
       navigate("/login")
     }
   }, [navigate])
+
+  // Load categories when component mounts
+  useEffect(() => {
+    const loadCategories = async () => {
+      setCategoriesLoading(true)
+      try {
+        await fetchCategories()
+      } catch (error) {
+        console.error('Error loading categories:', error)
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+    
+    // Only load if categories are empty
+    if (!categories || categories.length === 0) {
+      loadCategories()
+    } else {
+      setCategoriesLoading(false)
+    }
+  }, [fetchCategories, categories])
 
   // Update HomePage to use selectedCategory from footer if available
   useEffect(() => {
@@ -58,6 +81,28 @@ const HomePage = () => {
   useEffect(() => {
     fetchListings(0, 10000); // Fetch all listings (set size to a very large number)
   }, []);
+
+  // Load average ratings for listings
+  const loadAverageRatings = async (listings) => {
+    const ratings = {};
+    for (const listing of listings) {
+      try {
+        const avgRating = await getAverageRatingByListing(listing.id);
+        ratings[listing.id] = avgRating;
+      } catch (error) {
+        console.error(`Error loading rating for listing ${listing.id}:`, error);
+        ratings[listing.id] = listing.rating || "0.0";
+      }
+    }
+    setAverageRatings(ratings);
+  };
+
+  // Update average ratings when listings change
+  useEffect(() => {
+    if (listings.length > 0) {
+      loadAverageRatings(listings);
+    }
+  }, [listings]);
 
   // Reset image cache and fetch images for all approved listings when listings change
   useEffect(() => {
@@ -89,23 +134,13 @@ const HomePage = () => {
     return () => { isMounted = false; };
   }, [listings]);
 
-  // Compose dynamic, sorted categories with icons
-  const categoryIcons = {
-    "Restaurants": "",
-    "Shopping": "",
-    "Health & Beauty": "",
-    "Automotive": "",
-    "Entertainment": "",
-    "Education": "",
-    "Accommodation": "",
-    // Add more mappings as needed
-  };
+  // Compose dynamic, sorted categories from backend
   const sortedCategories = [
     { name: "All", icon: "" },
     ...[...(categories || [])]
       .filter(cat => cat && cat.name)
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(cat => ({ name: cat.name, icon: categoryIcons[cat.name] || "" }))
+      .map(cat => ({ name: cat.name, icon: "" }))
   ];
 
   // Multi-category filter
@@ -144,56 +179,23 @@ const HomePage = () => {
     navigate("/login")
   }
 
-  const openDetailsModal = (listing) => {
+  const openDetailsModal = async (listing) => {
     console.log('openDetailsModal called with:', listing);
     setSelectedListing(listing)
     // Get reviews for this listing
-    const reviews = getReviewsByListing(listing.id)
-    setListingReviews(reviews)
+    try {
+      const reviews = await getReviewsByListing(listing.id)
+      setListingReviews(reviews)
+    } catch (err) {
+      console.error("Error loading reviews:", err)
+      setListingReviews([])
+    }
     setIsDetailsModalOpen(true)
   }
 
   const closeDetailsModal = () => {
     setIsDetailsModalOpen(false)
     setListingReviews([])
-  }
-
-  const openReviewModal = (listing, e) => {
-    e.stopPropagation()
-    setSelectedListing(listing)
-    setIsReviewModalOpen(true)
-  }
-
-  const closeReviewModal = () => {
-    setIsReviewModalOpen(false)
-    setReviewForm({ rating: 5, comment: "" })
-  }
-
-  const handleReviewSubmit = (e) => {
-    e.preventDefault()
-
-    // Add the review to the context
-    const newReview = addReview({
-      listingId: selectedListing.id,
-      listingName: selectedListing.name,
-      businessType: selectedListing.category,
-      username: username,
-      rating: reviewForm.rating,
-      comment: reviewForm.comment,
-    })
-
-    // If the details modal is open, update the listing reviews
-    if (isDetailsModalOpen) {
-      setListingReviews((prev) => [...prev, newReview])
-    }
-
-    alert("Thank you for your review!")
-    closeReviewModal()
-  }
-
-  const handleReviewChange = (e) => {
-    const { name, value } = e.target
-    setReviewForm((prev) => ({ ...prev, [name]: value }))
   }
 
   // Format date for display
@@ -247,23 +249,30 @@ const HomePage = () => {
         <div className="container mx-auto">
           <h2 className="text-2xl font-bold mb-6 text-foreground">Categories</h2>
 
-          <div className="flex overflow-x-auto pb-4 space-x-4 scrollbar-hide">
-            {sortedCategories.map((category, index) => (
-              <button
-                key={index}
-                onClick={() => handleCategoryToggle(category.name)}
-                className={`flex flex-col items-center justify-center min-w-[100px] p-4 rounded-xl transition-all ${
-                  selectedCategories.includes(category.name)
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card hover:bg-accent text-card-foreground hover:text-accent-foreground"
-                }`}
-                style={{ border: selectedCategories.includes(category.name) ? '2px solid #6366f1' : undefined }}
-              >
-                <span className="text-2xl mb-2">{category.icon}</span>
-                <span className="text-sm font-medium">{category.name}</span>
-              </button>
-            ))}
-          </div>
+          {categoriesLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2 text-muted-foreground">Loading categories...</span>
+            </div>
+          ) : (
+            <div className="flex overflow-x-auto pb-4 space-x-4 scrollbar-hide">
+              {sortedCategories.map((category, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleCategoryToggle(category.name)}
+                  className={`flex flex-col items-center justify-center min-w-[100px] p-4 rounded-xl transition-all ${
+                    selectedCategories.includes(category.name)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card hover:bg-accent text-card-foreground hover:text-accent-foreground"
+                  }`}
+                  style={{ border: selectedCategories.includes(category.name) ? '2px solid #6366f1' : undefined }}
+                >
+                  <span className="text-2xl mb-2">{category.icon}</span>
+                  <span className="text-sm font-medium">{category.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -280,7 +289,7 @@ const HomePage = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredListings.map((listing) => {
                 // Get average rating from reviews
-                const avgRating = getAverageRatingByListing(listing.id) || listing.rating
+                const avgRating = averageRatings[listing.id] || listing.rating
 
                 return (
                   <div
@@ -303,7 +312,7 @@ const HomePage = () => {
                         <h3 className="text-xl font-semibold text-card-foreground">{listing.name}</h3>
                         <div className="flex items-center bg-primary/20 px-2 py-1 rounded-md">
                           <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span className="ml-1 text-sm text-card-foreground">{avgRating}</span>
+                          <span className="ml-1 text-sm text-card-foreground">{listing.rating || 0}</span>
                         </div>
                       </div>
 
@@ -332,16 +341,6 @@ const HomePage = () => {
                         >
                           <span>View Details</span>
                           <ExternalLink className="ml-2 h-4 w-4" />
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary hover:bg-primary/10"
-                          onClick={(e) => openReviewModal(listing, e)}
-                        >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          <span>Review</span>
                         </Button>
                       </div>
                     </div>
@@ -398,7 +397,7 @@ const HomePage = () => {
                 <div className="flex items-center bg-primary/20 px-3 py-1 rounded-md">
                   <Star className="h-5 w-5 text-yellow-400 fill-current" />
                   <span className="ml-1 font-medium text-card-foreground">
-                    {getAverageRatingByListing(selectedListing.id) || selectedListing.rating}
+                    {averageRatings[selectedListing.id] || selectedListing.rating}
                   </span>
                 </div>
               </div>
@@ -453,13 +452,6 @@ const HomePage = () => {
               <div className="mt-6 border-t border-border pt-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                   <h3 className="text-lg sm:text-xl font-semibold text-card-foreground">Reviews</h3>
-                  <Button
-                    className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
-                    onClick={(e) => openReviewModal(selectedListing, e)}
-                  >
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Write a Review
-                  </Button>
                 </div>
 
                 {listingReviews.length > 0 ? (
@@ -469,13 +461,15 @@ const HomePage = () => {
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                           <div className="flex items-center">
                             <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-                              {review.username.charAt(0)}
+                              {(review.username || "U").charAt(0)}
                             </div>
                             <div className="ml-3">
-                              <h4 className="font-medium text-card-foreground">{review.username}</h4>
+                              <h4 className="font-medium text-card-foreground">
+                                {review.username || "Anonymous"}
+                              </h4>
                               <div className="flex items-center text-sm text-muted-foreground">
                                 <Calendar className="h-3 w-3 mr-1" />
-                                <span>{formatDate(review.date)}</span>
+                                <span>{formatDate(review.createdAt)}</span>
                               </div>
                             </div>
                           </div>
@@ -490,10 +484,10 @@ const HomePage = () => {
                         </div>
                         <p className="text-card-foreground my-2">{review.comment}</p>
 
-                        {review.hasResponse && (
+                        {review.businessResponse && (
                           <div className="mt-3 pl-4 border-l-2 border-primary/30">
                             <p className="text-sm font-medium text-card-foreground">Business Response:</p>
-                            <p className="text-sm text-muted-foreground mt-1">{review.response}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{review.businessResponse}</p>
                           </div>
                         )}
                       </div>
@@ -513,74 +507,6 @@ const HomePage = () => {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Review Modal */}
-      {isReviewModalOpen && selectedListing && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div
-            className="bg-card rounded-xl shadow-lg w-full max-w-md mx-auto border border-border overflow-hidden max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 sm:p-6 border-b border-border">
-              <h2 className="text-xl font-semibold text-card-foreground">Review {selectedListing.name}</h2>
-            </div>
-
-            <form onSubmit={handleReviewSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Rating</label>
-                  <div className="flex space-x-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setReviewForm((prev) => ({ ...prev, rating: star }))}
-                        className="focus:outline-none"
-                      >
-                        <Star
-                          className={`h-6 w-6 sm:h-8 sm:w-8 ${
-                            star <= reviewForm.rating ? "text-yellow-400 fill-current" : "text-gray-300"
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="comment" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Your Review
-                  </label>
-                  <textarea
-                    id="comment"
-                    name="comment"
-                    rows="4"
-                    value={reviewForm.comment}
-                    onChange={handleReviewChange}
-                    className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="Share your experience with this business..."
-                    required
-                  ></textarea>
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-6 border-t border-border flex flex-col sm:flex-row sm:justify-end gap-2 sm:space-x-3 mt-auto">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-input text-foreground hover:bg-accent w-full sm:w-auto"
-                  onClick={closeReviewModal}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
-                  Submit Review
-                </Button>
-              </div>
-            </form>
           </div>
         </div>
       )}

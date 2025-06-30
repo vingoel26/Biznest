@@ -1,119 +1,138 @@
 "use client"
 
 import { createContext, useState, useContext, useEffect } from "react"
+import reviewService from "../services/reviewService"
 
 // Create the context
 const ReviewsContext = createContext()
 
-// Initial reviews data
-const initialReviews = [
-  {
-    id: 1,
-    listingId: 1,
-    listingName: "Tunday Kebabi",
-    businessType: "Restaurant",
-    username: "Rahul Sharma",
-    rating: 5,
-    comment: "Excellent service! The staff was very friendly and professional. Would definitely recommend to others.",
-    date: "2023-05-10T14:22:00Z",
-    hasResponse: false,
-    response: "",
-  },
-  {
-    id: 2,
-    listingId: 2,
-    listingName: "Pheonix Palassio",
-    businessType: "Shopping",
-    username: "Anjali Pai",
-    rating: 4,
-    comment: "Great shopping experience. The store had everything I needed and the prices were reasonable.",
-    date: "2023-05-05T09:15:00Z",
-    hasResponse: true,
-    response: "Thank you for your feedback! We're glad you enjoyed shopping with us.",
-  },
-  {
-    id: 3,
-    listingId: 6,
-    listingName: "Premium Auto Repair",
-    businessType: "Automotive",
-    username: "Vinayak Goel",
-    rating: 3,
-    comment: "Average experience. The service was okay but could be improved in some areas.",
-    date: "2023-04-28T16:45:00Z",
-    hasResponse: false,
-    response: "",
-  },
-]
-
 // Provider component
 export const ReviewsProvider = ({ children }) => {
-  const [reviews, setReviews] = useState(() => {
-    // Try to load from localStorage first
-    const savedReviews = localStorage.getItem("biznest_reviews")
-    return savedReviews ? JSON.parse(savedReviews) : initialReviews
-  })
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Save to localStorage whenever reviews change
+  // Load all reviews on component mount
   useEffect(() => {
-    localStorage.setItem("biznest_reviews", JSON.stringify(reviews))
-  }, [reviews])
+    loadAllReviews()
+  }, [])
+
+  const loadAllReviews = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // For now, we'll load reviews from all business listings
+      // In a real app, you might want to load reviews differently
+      const allReviews = []
+      
+      // Get reviews with business response
+      const reviewsWithResponse = await reviewService.getReviewsWithBusinessResponse()
+      allReviews.push(...reviewsWithResponse)
+      
+      // Get reviews without business response
+      const reviewsWithoutResponse = await reviewService.getReviewsWithoutBusinessResponse()
+      allReviews.push(...reviewsWithoutResponse)
+      
+      setReviews(allReviews)
+    } catch (err) {
+      console.error("Error loading reviews:", err)
+      setError("Failed to load reviews")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Add a new review
-  const addReview = (review) => {
-    const newReview = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      hasResponse: false,
-      response: "",
-      ...review,
+  const addReview = async (reviewData) => {
+    try {
+      const { rating, comment, userId, businessListingId } = reviewData
+      const newReview = await reviewService.createReview(
+        { rating, comment },
+        userId,
+        businessListingId
+      )
+      setReviews(prev => [...prev, newReview])
+      return newReview
+    } catch (err) {
+      console.error("Error adding review:", err)
+      throw new Error("Failed to add review")
     }
-    setReviews((prev) => [...prev, newReview])
-    return newReview
   }
 
   // Add a response to a review
-  const addResponse = (reviewId, responseText) => {
-    setReviews((prev) =>
-      prev.map((review) =>
-        review.id === reviewId
-          ? {
-              ...review,
-              hasResponse: true,
-              response: responseText,
-            }
-          : review,
-      ),
-    )
+  const addResponse = async (reviewId, responseText) => {
+    try {
+      const updatedReview = await reviewService.addBusinessResponse(reviewId, responseText)
+      setReviews(prev =>
+        prev.map((review) =>
+          review.id === reviewId ? updatedReview : review
+        )
+      )
+      return updatedReview
+    } catch (err) {
+      console.error("Error adding response:", err)
+      throw new Error("Failed to add response")
+    }
   }
 
   // Delete a review
-  const deleteReview = (reviewId) => {
-    setReviews((prev) => prev.filter((review) => review.id !== reviewId))
+  const deleteReview = async (reviewId) => {
+    try {
+      await reviewService.deleteReview(reviewId)
+      setReviews(prev => prev.filter((review) => review.id !== reviewId))
+    } catch (err) {
+      console.error("Error deleting review:", err)
+      throw new Error("Failed to delete review")
+    }
   }
 
   // Get reviews for a specific listing
-  const getReviewsByListing = (listingId) => {
-    return reviews.filter((review) => review.listingId === listingId)
+  const getReviewsByListing = async (listingId) => {
+    try {
+      return await reviewService.getReviewsByBusinessListing(listingId)
+    } catch (err) {
+      console.error("Error getting reviews by listing:", err)
+      return []
+    }
   }
 
   // Get average rating for a specific listing
-  const getAverageRatingByListing = (listingId) => {
-    const listingReviews = getReviewsByListing(listingId)
-    if (listingReviews.length === 0) return 0
-
-    const sum = listingReviews.reduce((total, review) => total + review.rating, 0)
-    return (sum / listingReviews.length).toFixed(1)
+  const getAverageRatingByListing = async (listingId) => {
+    try {
+      const averageRating = await reviewService.getAverageRating(listingId)
+      return averageRating ? averageRating.toFixed(1) : "0.0"
+    } catch (err) {
+      console.error("Error getting average rating:", err)
+      return "0.0"
+    }
   }
+
+  // Check if user has reviewed a business
+  const hasUserReviewedBusiness = async (userId, businessListingId) => {
+    try {
+      return await reviewService.hasUserReviewedBusiness(userId, businessListingId)
+    } catch (err) {
+      console.error("Error checking if user reviewed business:", err)
+      return false
+    }
+  }
+
+  // Refresh reviews
+  const refreshReviews = () => loadAllReviews();
 
   return (
     <ReviewsContext.Provider
       value={{
         reviews,
+        loading,
+        error,
         addReview,
         addResponse,
         deleteReview,
         getReviewsByListing,
         getAverageRatingByListing,
+        hasUserReviewedBusiness,
+        refreshReviews,
       }}
     >
       {children}

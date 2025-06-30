@@ -53,6 +53,10 @@ public class BusinessListing {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "businessListings"})
     private UserEntity owner;
 
+    @OneToMany(mappedBy = "businessListing", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "user", "businessListing"})
+    private java.util.List<Review> reviews = new java.util.ArrayList<>();
+
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
 

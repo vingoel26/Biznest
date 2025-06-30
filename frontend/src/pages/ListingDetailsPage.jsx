@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { MapPin, Phone, Clock, Star, User, MessageSquare, Building2, CheckCircle, XCircle } from "lucide-react"
 import listingService from "../services/listingService"
+import userService from "../services/userService"
 import { useReviews } from "../context/ReviewsContext"
+import reviewService from "../services/reviewService"
 
 // Minimal UI components for self-contained use
 function Card({ children, className = "", ...props }) {
@@ -47,68 +49,149 @@ function Label({ children, className = "", ...props }) {
 
 export default function ListingDetailsPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { addReview, getReviewsByListing, getAverageRatingByListing, hasUserReviewedBusiness, refreshReviews } = useReviews()
   const [listing, setListing] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [avgRating, setAvgRating] = useState(null)
   const [imageUrl, setImageUrl] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" })
   const [submitting, setSubmitting] = useState(false)
-  const { getReviewsByListing, addReview, getAverageRatingByListing } = useReviews()
-  const reviews = getReviewsByListing(Number(id))
-  const avgRating = getAverageRatingByListing(Number(id))
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" })
+  const [userHasReviewed, setUserHasReviewed] = useState(false)
+  const [existingReview, setExistingReview] = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
   const username = localStorage.getItem("username") || "Anonymous"
 
   useEffect(() => {
-    let isMounted = true
     async function fetchListing() {
-      setLoading(true)
-      setError(null)
       try {
-        const data = await listingService.getListing(id)
-        if (!isMounted) return
-        setListing(data)
-        // Always try to fetch blob image first
+        setLoading(true)
+        const listingData = await listingService.getListing(id)
+        setListing(listingData)
+        
+        // Fetch reviews
+        const reviewsData = await getReviewsByListing(id)
+        setReviews(reviewsData)
+        
+        // Fetch average rating
+        const avgRatingData = await getAverageRatingByListing(id)
+        setAvgRating(avgRatingData)
+        
+        // Check if user has already reviewed this business
+        try {
+          const currentUser = await userService.getCurrentUser()
+          if (currentUser) {
+            const hasReviewed = await hasUserReviewedBusiness(currentUser.id, Number(id))
+            setUserHasReviewed(hasReviewed)
+            
+            if (hasReviewed) {
+              // Find the user's existing review
+              const userReview = reviewsData.find(review => review.username === currentUser.username)
+              if (userReview) {
+                setExistingReview(userReview)
+                setReviewForm({ rating: userReview.rating, comment: userReview.comment })
+              }
+            }
+          }
+        } catch (userError) {
+          console.log("User not logged in or error checking review status")
+        }
+        
+        // Fetch image
         try {
           const blob = await listingService.getListingImage(id)
-          if (!isMounted) return
-          setImageUrl(URL.createObjectURL(blob))
-        } catch {
-          setImageUrl(data.imageUrl || null)
+          const url = URL.createObjectURL(blob)
+          setImageUrl(url)
+        } catch (err) {
+          console.log("No image found for listing")
         }
       } catch (err) {
-        setError("Failed to load listing.")
+        console.error("Error fetching listing:", err)
+        setError("Failed to load listing")
       } finally {
         setLoading(false)
       }
     }
+    
     fetchListing()
-    return () => {
-      isMounted = false
-      if (imageUrl) URL.revokeObjectURL(imageUrl)
-    }
-    // eslint-disable-next-line
-  }, [id])
+  }, [id, getReviewsByListing, getAverageRatingByListing, hasUserReviewedBusiness])
 
   const handleReviewChange = (e) => {
     const { name, value } = e.target
     setReviewForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleReviewSubmit = (e) => {
+  const handleEditReview = () => {
+    if (existingReview) {
+      setReviewForm({ rating: existingReview.rating, comment: existingReview.comment })
+      setIsEditing(true)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    if (existingReview) {
+      setReviewForm({ rating: existingReview.rating, comment: existingReview.comment })
+    } else {
+      setReviewForm({ rating: 5, comment: "" })
+    }
+  }
+
+  const handleReviewSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
-    addReview({
-      listingId: Number(id),
-      listingName: listing?.name || "",
-      businessType: listing?.category || "",
-      username: username,
-      rating: reviewForm.rating,
-      comment: reviewForm.comment,
-    })
-    setTimeout(() => {
+    
+    try {
+      // Get current user information
+      const currentUser = await userService.getCurrentUser()
+      
+      if (isEditing && existingReview) {
+        // Update existing review
+        const updatedReview = await reviewService.updateReview(existingReview.id, {
+          rating: reviewForm.rating,
+          comment: reviewForm.comment
+        })
+        
+        // Re-fetch reviews from backend to ensure latest data
+        const refreshedReviews = await getReviewsByListing(id)
+        setReviews(refreshedReviews)
+        // Update existingReview to the latest review for the current user
+        const currentUserReview = refreshedReviews.find(r => r.username === currentUser.username)
+        setExistingReview(currentUserReview)
+        // Also refresh global reviews context for dashboard
+        await refreshReviews();
+        setIsEditing(false)
+        alert("Review updated successfully!")
+      } else {
+        // Add new review
+        const newReview = await addReview({
+          rating: reviewForm.rating,
+          comment: reviewForm.comment,
+          userId: currentUser.id,
+          businessListingId: Number(id),
+        })
+        
+        // Update local state
+        setReviews(prev => [newReview, ...prev])
+        setUserHasReviewed(true)
+        setExistingReview(newReview)
+        alert("Review submitted successfully!")
+      }
+      
+      // Update average rating
+      const newAvgRating = await getAverageRatingByListing(Number(id))
+      setAvgRating(newAvgRating)
+      
+      // Reset form
       setReviewForm({ rating: 5, comment: "" })
+    } catch (err) {
+      console.error("Error submitting review:", err)
+      alert("Failed to submit review. Please try again.")
+    } finally {
       setSubmitting(false)
-    }, 500)
+    }
   }
 
   const renderStars = (rating, interactive = false, onRatingChange) => (
@@ -226,13 +309,13 @@ export default function ListingDetailsPage() {
                           <div className="flex items-center space-x-3">
                             <Avatar>
                             <AvatarFallback className="bg-primary/10 text-primary">
-                                {review.username.charAt(0)}
+                                {review.username?.charAt(0) || "U"}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <h4 className="font-medium">{review.username}</h4>
+                              <h4 className="font-medium">{review.username || "Anonymous"}</h4>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(review.date).toLocaleDateString("en-US", {
+                                {new Date(review.createdAt).toLocaleDateString("en-US", {
                                   year: "numeric",
                                   month: "long",
                                   day: "numeric",
@@ -243,13 +326,13 @@ export default function ListingDetailsPage() {
                           {renderStars(review.rating)}
                         </div>
                         <p className="text-sm leading-relaxed">{review.comment}</p>
-                        {review.hasResponse && (
+                        {review.businessResponse && (
                           <div className="bg-muted/50 rounded-md p-3 border-l-4 border-primary">
                             <div className="flex items-center space-x-2 mb-1">
                               <Building2 className="h-3 w-3 text-primary" />
                               <span className="text-xs font-medium text-primary">Business Response</span>
                             </div>
-                            <p className="text-sm text-muted-foreground">{review.response}</p>
+                            <p className="text-sm text-muted-foreground">{review.businessResponse}</p>
                           </div>
                         )}
                       </div>
@@ -259,32 +342,116 @@ export default function ListingDetailsPage() {
 
                 <Separator />
 
-                {/* Add Review Form */}
+                {/* Review Form Section */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Write a Review</h3>
-                  <form onSubmit={handleReviewSubmit} className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Your Rating</Label>
-                      {renderStars(reviewForm.rating, true, (rating) => setReviewForm((prev) => ({ ...prev, rating })))}
+                  {userHasReviewed && existingReview ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">Your Review</h3>
+                        {!isEditing && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleEditReview}
+                          >
+                            Edit Review
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {isEditing ? (
+                        <form onSubmit={handleReviewSubmit} className="space-y-4">
+                          <div>
+                            <Label className="text-sm font-medium">Your Rating</Label>
+                            {renderStars(reviewForm.rating, true, (rating) => setReviewForm((prev) => ({ ...prev, rating })))}
+                          </div>
+                          <div>
+                            <Label htmlFor="comment" className="text-sm font-medium">
+                              Your Review
+                            </Label>
+                            <Textarea
+                              id="comment"
+                              name="comment"
+                              value={reviewForm.comment}
+                              onChange={handleReviewChange}
+                              placeholder="Share your experience..."
+                              className="mt-1 min-h-[100px]"
+                              required
+                            />
+                          </div>
+                          <div className="flex space-x-3">
+                            <Button type="submit" disabled={submitting}>
+                              {submitting ? "Updating..." : "Update Review"}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <Avatar>
+                                <AvatarFallback className="bg-primary/10 text-primary">
+                                  {existingReview.username?.charAt(0) || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h4 className="font-medium">{existingReview.username || "You"}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(existingReview.createdAt).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                            {renderStars(existingReview.rating)}
+                          </div>
+                          <p className="text-sm leading-relaxed">{existingReview.comment}</p>
+                          {existingReview.businessResponse && (
+                            <div className="bg-muted/50 rounded-md p-3 border-l-4 border-primary">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Building2 className="h-3 w-3 text-primary" />
+                                <span className="text-xs font-medium text-primary">Business Response</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{existingReview.businessResponse}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+                  ) : (
                     <div>
-                      <Label htmlFor="comment" className="text-sm font-medium">
-                        Your Review
-                      </Label>
-                      <Textarea
-                        id="comment"
-                        name="comment"
-                        value={reviewForm.comment}
-                        onChange={handleReviewChange}
-                        placeholder="Share your experience..."
-                        className="mt-1 min-h-[100px]"
-                        required
-                      />
+                      <h3 className="text-lg font-semibold mb-4">Write a Review</h3>
+                      <form onSubmit={handleReviewSubmit} className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Your Rating</Label>
+                          {renderStars(reviewForm.rating, true, (rating) => setReviewForm((prev) => ({ ...prev, rating })))}
+                        </div>
+                        <div>
+                          <Label htmlFor="comment" className="text-sm font-medium">
+                            Your Review
+                          </Label>
+                          <Textarea
+                            id="comment"
+                            name="comment"
+                            value={reviewForm.comment}
+                            onChange={handleReviewChange}
+                            placeholder="Share your experience..."
+                            className="mt-1 min-h-[100px]"
+                            required
+                          />
+                        </div>
+                        <Button type="submit" disabled={submitting}>
+                          {submitting ? "Submitting..." : "Submit Review"}
+                        </Button>
+                      </form>
                     </div>
-                    <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-                      {submitting ? "Submitting..." : "Submit Review"}
-                    </Button>
-                  </form>
+                  )}
                 </div>
               </CardContent>
             </Card>

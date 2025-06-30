@@ -65,7 +65,7 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { listings, metrics, addListing, updateListing, deleteListing, getCategoryCounts, fetchListings, page, size, totalPages, loading, error, setPage, setSize, categories, categoryStats, createCategory, updateCategory, deleteCategory, fetchCategories, fetchCategoryStats, fetchListingsByCategory } = useListings()
-  const { reviews, addResponse, deleteReview, getAverageRatingByListing } = useReviews()
+  const { reviews, addResponse, deleteReview, getAverageRatingByListing, refreshReviews } = useReviews()
 
   const [view, setView] = useState("dashboard")
   const [formData, setFormData] = useState({
@@ -78,7 +78,7 @@ const Dashboard = () => {
     address: "",
     phone: "",
     hours: "",
-    image: "/images/restaurant-image.webp", // Default image
+    image: "", // Remove hardcoded default image
     owner: "" // Add owner field if needed
   })
   const [isEditMode, setIsEditMode] = useState(false)
@@ -104,7 +104,8 @@ const Dashboard = () => {
   const [adminError, setAdminError] = useState("")
 
   // Review filtering
-  const [reviewFilter, setReviewFilter] = useState("all")
+  const [reviewFilter, setReviewFilter] = useState("all") // for response filter
+  const [businessFilter, setBusinessFilter] = useState("all") // for business name filter
   const [ratingFilter, setRatingFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false)
@@ -133,6 +134,9 @@ const Dashboard = () => {
     ratingTrend: ""
   });
   const [analyticsError, setAnalyticsError] = useState(null);
+
+  // Add state for average ratings
+  const [averageRatings, setAverageRatings] = useState({});
 
   // Add state for image file and preview
   const [selectedImageFile, setSelectedImageFile] = useState(null);
@@ -198,38 +202,40 @@ const Dashboard = () => {
     );
   });
 
-  // Restore filteredReviews logic
+  // Filter reviews based on selected filters
   const filteredReviews = reviews.filter((review) => {
-    // Filter by business
-    if (reviewFilter !== "all" && review.listingName !== reviewFilter) {
-      return false
-    }
-    // Filter by rating
+    const reviewDate = new Date(review.createdAt)
+    const now = new Date()
+    const oneDay = 24 * 60 * 60 * 1000
+    const oneWeek = 7 * oneDay
+    const oneMonth = 30 * oneDay
+
+    // Business filter
+    const businessName =
+      review.businessListing?.name ||
+      review.businessName ||
+      review.listingName ||
+      "Unknown Business";
+    if (businessFilter !== "all" && businessName !== businessFilter) return false;
+
+    // Response filter
+    if (reviewFilter === "with-response" && !review.businessResponse) return false;
+    if (reviewFilter === "without-response" && review.businessResponse) return false;
+
+    // Rating filter
     if (ratingFilter !== "all") {
-      const ratingValue = Number.parseInt(ratingFilter)
-      if (review.rating !== ratingValue) {
-        return false
-      }
+      const rating = parseInt(ratingFilter)
+      if (review.rating !== rating) return false
     }
-    // Filter by date
+
+    // Date filter
     if (dateFilter !== "all") {
-      const reviewDate = new Date(review.date)
-      const now = new Date()
-      switch (dateFilter) {
-        case "today":
-          return reviewDate.toDateString() === now.toDateString()
-        case "week":
-          const weekAgo = new Date(now)
-          weekAgo.setDate(now.getDate() - 7)
-          return reviewDate >= weekAgo
-        case "month":
-          const monthAgo = new Date(now)
-          monthAgo.setDate(now.getDate() - 30)
-          return reviewDate >= monthAgo
-        default:
-          return true
-      }
+      const diff = now - reviewDate
+      if (dateFilter === "today" && diff > oneDay) return false
+      if (dateFilter === "week" && diff > oneWeek) return false
+      if (dateFilter === "month" && diff > oneMonth) return false
     }
+
     return true
   })
 
@@ -263,8 +269,16 @@ const Dashboard = () => {
 
   // Add this useEffect to populate review listings
   useEffect(() => {
-    // Get unique business names from listings
-    const uniqueBusinesses = [...new Set(reviews.map((review) => review.listingName))]
+    // Get unique business names from reviews
+    const uniqueBusinesses = [...new Set(reviews.map((review) => {
+      // Try to get the business name from different possible fields
+      return (
+        review.businessListing?.name ||
+        review.businessName ||
+        review.listingName ||
+        "Unknown Business"
+      );
+    }))];
     setReviewListings(uniqueBusinesses)
   }, [reviews])
 
@@ -325,6 +339,28 @@ const Dashboard = () => {
     }
   }, [page, size, view]);
 
+  // Load average ratings for listings
+  const loadAverageRatings = async (listings) => {
+    const ratings = {};
+    for (const listing of listings) {
+      try {
+        const avgRating = await getAverageRatingByListing(listing.id);
+        ratings[listing.id] = avgRating;
+      } catch (error) {
+        console.error(`Error loading rating for listing ${listing.id}:`, error);
+        ratings[listing.id] = "0.0";
+      }
+    }
+    setAverageRatings(ratings);
+  };
+
+  // Update average ratings when listings change
+  useEffect(() => {
+    if (listings.length > 0 && view === "listings") {
+      loadAverageRatings(listings);
+    }
+  }, [listings, view]);
+
   const fetchUsers = async () => {
     try {
       setIsLoadingUsers(true)
@@ -363,7 +399,7 @@ const Dashboard = () => {
       phone: formData.phone || "+1 (555) 123-4567",
       businessHours: formData.hours || "9:00 AM - 5:00 PM",
       rating: formData.rating || 4.5,
-      imageUrl: formData.image || "/images/restaurant-image.webp",
+      imageUrl: formData.image || "", // Remove hardcoded default image
       description: formData.desc || "",
       category: formData.category ? parseInt(formData.category) : undefined,
       owner: userProfile.id // <-- set owner here
@@ -393,7 +429,7 @@ const Dashboard = () => {
       address: "",
       phone: "",
       hours: "",
-      image: "/images/restaurant-image.webp",
+      image: "", // Remove hardcoded default image
       owner: ""
     });
     setIsEditMode(false);
@@ -423,6 +459,13 @@ const Dashboard = () => {
       if (blob && blob.size > 0) {
         setImagePreviewUrl(URL.createObjectURL(blob));
       }
+    }).catch(error => {
+      // Silently handle 404 errors (no image uploaded yet)
+      if (error.response && error.response.status === 404) {
+        console.log(`No image found for listing ${id}`);
+      } else {
+        console.error("Error fetching listing image:", error);
+      }
     });
     setIsEditMode(true)
     setEditId(id)
@@ -432,6 +475,7 @@ const Dashboard = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this listing?")) {
       await deleteListing(id)
+      await refreshReviews(); // Refresh reviews in case any were deleted
       fetchAnalytics(); // Refresh analytics
     }
   }
@@ -466,21 +510,31 @@ const Dashboard = () => {
     setResponseForm({ reviewId: null, text: "" })
   }
 
-  const handleResponseSubmit = (e) => {
+  const handleResponseSubmit = async (e) => {
     e.preventDefault()
-    addResponse(responseForm.reviewId, responseForm.text)
-    closeResponseModal()
-    fetchAnalytics(); // Refresh analytics
+    try {
+      await addResponse(responseForm.reviewId, responseForm.text)
+      closeResponseModal()
+      fetchAnalytics(); // Refresh analytics
+    } catch (err) {
+      console.error("Error adding response:", err)
+      alert("Failed to add response. Please try again.")
+    }
   }
 
   const handleResponseChange = (e) => {
     setResponseForm((prev) => ({ ...prev, text: e.target.value }))
   }
 
-  const handleDeleteReview = (reviewId) => {
+  const handleDeleteReview = async (reviewId) => {
     if (window.confirm("Are you sure you want to delete this review?")) {
-      deleteReview(reviewId)
-      fetchAnalytics(); // Refresh analytics
+      try {
+        await deleteReview(reviewId)
+        fetchAnalytics(); // Refresh analytics
+      } catch (err) {
+        console.error("Error deleting review:", err)
+        alert("Failed to delete review. Please try again.")
+      }
     }
   }
 
@@ -601,11 +655,11 @@ const Dashboard = () => {
     setCategoryForm({ name: cat.name, description: cat.description || '' });
   };
 
-  // Delete category
   const handleDeleteCategory = async (id) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
         await deleteCategory(id);
+        await refreshReviews(); // Refresh reviews in case any were deleted
         fetchCategoryStats();
       } catch (err) {
         setCategoryError('Failed to delete category.');
@@ -1025,7 +1079,7 @@ const Dashboard = () => {
                             </thead>
                             <tbody>
                               {listings.slice(0, 5).map((listing) => (
-                                <tr key={listing.id} className="border-b border-border hover:bg-accent/50">
+                                <tr key={listing.id || listing.name} className="border-b border-border hover:bg-accent/50">
                                   <td className="py-3 px-4 text-foreground">{listing.name}</td>
                                   <td className="py-3 px-4 text-foreground">{listing.category?.name || 'Uncategorized'}</td>
                                   <td className="py-3 px-4 text-foreground">{listing.location}</td>
@@ -1058,11 +1112,15 @@ const Dashboard = () => {
                         </div>
                         <div className="space-y-4">
                           {reviews.slice(0, 3).map((review) => (
-                            <div key={review.id} className="border border-border rounded-lg p-4">
+                            <div key={review.id || review.username} className="border border-border rounded-lg p-4">
                               <div className="flex justify-between items-start mb-2">
                                 <div>
-                                  <h3 className="font-medium text-card-foreground">{review.username}</h3>
-                                  <p className="text-sm text-muted-foreground">{review.listingName}</p>
+                                  <h3 className="font-medium text-card-foreground">
+                                    {review.username || "Anonymous"}
+                                  </h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    {review.businessName || "Unknown Business"}
+                                  </p>
                                 </div>
                                 <div className="flex items-center">
                                   {[...Array(5)].map((_, i) => (
@@ -1075,8 +1133,10 @@ const Dashboard = () => {
                                   ))}
                                 </div>
                               </div>
-                              <p className="text-sm text-card-foreground mb-2">{review.text}</p>
-                              <p className="text-xs text-muted-foreground">{formatDate(review.date)}</p>
+                              <p className="text-sm text-card-foreground mb-2">{review.comment}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(review.createdAt)}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -1125,7 +1185,7 @@ const Dashboard = () => {
                               </thead>
                               <tbody>
                                 {filteredListings.map((listing) => (
-                                  <tr key={listing.id} className="border-t border-border hover:bg-accent/50">
+                                  <tr key={listing.id || listing.name} className="border-t border-border hover:bg-accent/50">
                                     <td className="py-3 px-4 text-foreground">{listing.name}</td>
                                     <td className="py-3 px-4 text-foreground">{listing.category?.name || 'Uncategorized'}</td>
                                     <td className="py-3 px-4 text-foreground">{listing.location}</td>
@@ -1148,13 +1208,13 @@ const Dashboard = () => {
                                           <Star
                                             key={i}
                                             className={`h-4 w-4 ${
-                                              i < Math.floor(getAverageRatingByListing(listing.id) || 4.5)
+                                              i < Math.floor(averageRatings[listing.id] || 4.5)
                                                 ? "text-yellow-400 fill-yellow-400"
                                                 : "text-gray-300"
                                             }`}
                                           />
                                         ))}
-                                        <span className="ml-2 text-sm text-muted-foreground">{getAverageRatingByListing(listing.id) || 4.5}</span>
+                                        <span className="ml-2 text-sm text-muted-foreground">{averageRatings[listing.id] || 4.5}</span>
                                       </div>
                                     </td>
                                     <td className="py-3 px-4 text-right">
@@ -1239,7 +1299,7 @@ const Dashboard = () => {
                         {categories.length === 0 ? (
                           <div className="text-muted-foreground">No categories found.</div>
                         ) : categories.map((category) => (
-                          <div key={category.id} className="flex flex-col">
+                          <div key={category.id || category.name} className="flex flex-col">
                             <div className="flex items-center justify-between p-4 border border-border rounded-lg">
                               <div className="flex items-center">
                                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mr-4">
@@ -1300,7 +1360,7 @@ const Dashboard = () => {
                                     </thead>
                                     <tbody>
                                       {categoryListings[category.id] && categoryListings[category.id].map(listing => (
-                                        <tr key={listing.id}>
+                                        <tr key={listing.id || listing.name}>
                                           <td className="py-2 px-2">{listing.name}</td>
                                           <td className="py-2 px-2">{listing.location}</td>
                                           <td className="py-2 px-2">{listing.status}</td>
@@ -1458,8 +1518,8 @@ const Dashboard = () => {
                                     </label>
                                     <select
                                       className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
-                                      value={reviewFilter}
-                                      onChange={(e) => setReviewFilter(e.target.value)}
+                                      value={businessFilter}
+                                      onChange={(e) => setBusinessFilter(e.target.value)}
                                     >
                                       <option value="all">All Businesses</option>
                                       {reviewListings.map((business) => (
@@ -1506,6 +1566,7 @@ const Dashboard = () => {
                                       className="text-xs"
                                       onClick={() => {
                                         setReviewFilter("all")
+                                        setBusinessFilter("all")
                                         setRatingFilter("all")
                                         setDateFilter("all")
                                       }}
@@ -1527,15 +1588,21 @@ const Dashboard = () => {
                           </div>
                         ) : (
                           filteredReviews.map((review) => (
-                            <div key={review.id} className="border border-border rounded-lg p-4">
+                            <div key={review.id || review.username} className="border border-border rounded-lg p-4">
                               <div className="flex justify-between items-start mb-4">
                                 <div>
                                   <div className="flex items-center mb-1">
-                                    <h3 className="font-medium text-card-foreground">{review.username}</h3>
+                                    <h3 className="font-medium text-card-foreground">
+                                      {review.username || "Anonymous"}
+                                    </h3>
                                     <span className="mx-2 text-muted-foreground">•</span>
-                                    <p className="text-sm text-muted-foreground">{formatDate(review.date)}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {formatDate(review.createdAt)}
+                                    </p>
                                   </div>
-                                  <p className="text-sm text-primary mb-1">{review.listingName}</p>
+                                  <p className="text-sm text-primary mb-1">
+                                    {review.businessName || "Unknown Business"}
+                                  </p>
                                   <div className="flex items-center">
                                     {[...Array(5)].map((_, i) => (
                                       <Star
@@ -1569,17 +1636,16 @@ const Dashboard = () => {
                                   </Button>
                                 </div>
                               </div>
-                              <p className="text-card-foreground mb-4">{review.text}</p>
-                              {review.response && (
+                              {review.businessResponse && (
                                 <div className="bg-accent/50 rounded-lg p-3 mt-2">
                                   <div className="flex items-center mb-1">
                                     <h4 className="text-sm font-medium text-card-foreground">Business Response</h4>
                                     <span className="mx-2 text-muted-foreground">•</span>
                                     <p className="text-xs text-muted-foreground">
-                                      {formatDate(review.responseDate || new Date())}
+                                      {formatDate(review.updatedAt || review.createdAt || new Date())}
                                     </p>
                                   </div>
-                                  <p className="text-sm text-card-foreground">{review.response}</p>
+                                  <p className="text-sm text-card-foreground">{review.businessResponse}</p>
                                 </div>
                               )}
                             </div>
@@ -1631,7 +1697,7 @@ const Dashboard = () => {
                             </thead>
                             <tbody>
                               {filteredUsers.map((user) => (
-                                <tr key={user.id} className="border-t border-border hover:bg-accent/50">
+                                <tr key={user.id || user.username} className="border-t border-border hover:bg-accent/50">
                                   <td className="py-3 px-4 text-foreground">{user.username}</td>
                                   <td className="py-3 px-4 text-foreground">{user.displayName || "-"}</td>
                                   <td className="py-3 px-4 text-foreground">{user.email}</td>
@@ -1739,7 +1805,7 @@ const Dashboard = () => {
                         >
                           <option value="">Select a category</option>
                           {categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
+                            <option key={cat.id || cat.name} value={cat.id}>
                               {cat.name}
                             </option>
                           ))}
